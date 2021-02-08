@@ -121,7 +121,9 @@ static void	vte_miibus_statchg(struct ifnet *);
 static int	vte_miibus_writereg(device_t, int, int, uint16_t);
 static int	vte_mediachange(struct ifnet *);
 static int	vte_newbuf(struct vte_softc *, struct vte_rxdesc *);
+#if 0
 static void	vte_reset(struct vte_softc *);
+#endif
 static void	vte_rxeof(struct vte_softc *);
 static void	vte_rxfilter(struct vte_softc *);
 static bool	vte_shutdown(device_t, int);
@@ -208,14 +210,18 @@ vte_attach(device_t parent, device_t self, void *aux)
 
 	pci_aprint_devinfo(pa, NULL);
 
-	/* Reset the ethernet controller. */
-	vte_reset(sc);
+	if (CSR_READ_2(sc, VTE_MPSCCR) == 0) {
+		CSR_WRITE_2(sc, VTE_MPSCCR, MPSCCR_PHY_STS_CHG_ENB |
+		(PHY_MAX_ADDRESS << MMDIO_PHY_ADDR_SHIFT) | (7 << MMDIO_REG_ADDR_SHIFT));
+	}
 
 	if ((error = vte_dma_alloc(sc)) != 0)
 		return;
 
 	/* Load station address. */
 	vte_get_macaddr(sc);
+
+	CSR_WRITE_2(sc, VTE_MCR0, MCR0_RX_ENB | MCR0_TX_ENB);
 
 	aprint_normal_dev(self, "Ethernet address %s\n",
 	    ether_sprintf(sc->vte_eaddr));
@@ -364,6 +370,7 @@ vte_miibus_writereg(device_t dev, int phy, int reg, uint16_t val)
 {
 	struct vte_softc *sc = device_private(dev);
 	int i;
+	uint16_t readval;
 
 	CSR_WRITE_2(sc, VTE_MMWD, val);
 	CSR_WRITE_2(sc, VTE_MMDIO, MMDIO_WRITE |
@@ -378,6 +385,8 @@ vte_miibus_writereg(device_t dev, int phy, int reg, uint16_t val)
 		aprint_error_dev(sc->vte_dev, "phy write timeout : %d\n", reg);
 		return ETIMEDOUT;
 	}
+	vte_miibus_readreg(dev, phy, reg, &readval);
+	aprint_normal_dev(sc->vte_dev, "phy read values: phy %d, reg %d, orig x%x, read x%x\n", phy, reg, val, readval);
 
 	return 0;
 }
@@ -397,6 +406,7 @@ vte_miibus_statchg(struct ifnet *ifp)
 		switch (IFM_SUBTYPE(sc->vte_mii.mii_media_active)) {
 		case IFM_10_T:
 		case IFM_100_TX:
+			aprint_normal_dev(sc->vte_dev, "link established.\n");
 			sc->vte_flags |= VTE_FLAG_LINK;
 			break;
 		default:
@@ -408,6 +418,7 @@ vte_miibus_statchg(struct ifnet *ifp)
 	vte_stop_mac(sc);
 	/* Program MACs with resolved duplex and flow control. */
 	if ((sc->vte_flags & VTE_FLAG_LINK) != 0) {
+		aprint_normal_dev(sc->vte_dev, "program MAC.\n");
 		/*
 		 * Timer waiting time : (63 + TIMER * 64) MII clock.
 		 * MII clock : 25MHz(100Mbps) or 2.5MHz(10Mbps).
@@ -967,6 +978,7 @@ vte_intr(void *arg)
 	struct vte_softc *sc = (struct vte_softc *)arg;
 	struct ifnet *ifp = &sc->vte_if;
 	uint16_t status;
+	uint16_t misr;
 	int n;
 
 	/* Reading VTE_MISR acknowledges interrupts. */
@@ -978,6 +990,7 @@ vte_intr(void *arg)
 	}
 
 	/* Disable interrupts. */
+	misr = CSR_READ_2(sc, VTE_MIER);
 	CSR_WRITE_2(sc, VTE_MIER, 0);
 	for (n = 8; (status & VTE_INTRS) != 0;) {
 		if ((ifp->if_flags & IFF_RUNNING) == 0)
@@ -998,7 +1011,7 @@ vte_intr(void *arg)
 
 	if ((ifp->if_flags & IFF_RUNNING) != 0) {
 		/* Re-enable interrupts. */
-		CSR_WRITE_2(sc, VTE_MIER, VTE_INTRS);
+		CSR_WRITE_2(sc, VTE_MIER, misr);
 	}
 	return 1;
 }
@@ -1208,21 +1221,23 @@ vte_tick(void *arg)
 	splx(s);
 }
 
+#if 0
 static void
 vte_reset(struct vte_softc *sc)
 {
 	uint16_t mcr;
 	int i;
 
-	mcr = CSR_READ_2(sc, VTE_MCR1);
-	CSR_WRITE_2(sc, VTE_MCR1, mcr | MCR1_MAC_RESET);
+	CSR_WRITE_2(sc, VTE_MCR1, MCR1_MAC_RESET);
 	for (i = VTE_RESET_TIMEOUT; i > 0; i--) {
 		DELAY(10);
-		if ((CSR_READ_2(sc, VTE_MCR1) & MCR1_MAC_RESET) == 0)
+		mcr = CSR_READ_2(sc, VTE_MCR1);
+		if ((mcr & MCR1_MAC_RESET) == 0)
 			break;
 	}
 	if (i == 0)
 		aprint_error_dev(sc->vte_dev, "reset timeout(0x%04x)!\n", mcr);
+
 	/*
 	 * Follow the guide of vendor recommended way to reset MAC.
 	 * Vendor confirms relying on MCR1_MAC_RESET of VTE_MCR1 is
@@ -1232,14 +1247,13 @@ vte_reset(struct vte_softc *sc)
 	CSR_WRITE_2(sc, VTE_MACSM, 0);
 	DELAY(5000);
 }
-
+#endif
 
 static int
 vte_init(struct ifnet *ifp)
 {
 	struct vte_softc *sc = ifp->if_softc;
 	bus_addr_t paddr;
-	uint8_t eaddr[ETHER_ADDR_LEN];
 	int s, error;
 
 	s = splnet();
@@ -1247,16 +1261,11 @@ vte_init(struct ifnet *ifp)
 	 * Cancel any pending I/O.
 	 */
 	vte_stop(ifp, 1);
-	/*
-	 * Reset the chip to a known state.
-	 */
-	vte_reset(sc);
 
 	if ((sc->vte_if.if_flags & IFF_UP) == 0) {
 		splx(s);
 		return 0;
 	}
-
 	/* Initialize RX descriptors. */
 	if (vte_init_rx_ring(sc) != 0) {
 		aprint_error_dev(sc->vte_dev, "no memory for RX buffers.\n");
@@ -1264,24 +1273,13 @@ vte_init(struct ifnet *ifp)
 		splx(s);
 		return ENOMEM;
 	}
+	/* Initialize TX descriptors. */
 	if (vte_init_tx_ring(sc) != 0) {
 		aprint_error_dev(sc->vte_dev, "no memory for TX buffers.\n");
 		vte_stop(ifp, 1);
 		splx(s);
 		return ENOMEM;
 	}
-
-	/*
-	 * Reprogram the station address.  Controller supports up
-	 * to 4 different station addresses so driver programs the
-	 * first station address as its own ethernet address and
-	 * configure the remaining three addresses as perfect
-	 * multicast addresses.
-	 */
-	memcpy(eaddr, CLLADDR(ifp->if_sadl), ETHER_ADDR_LEN);
-	CSR_WRITE_2(sc, VTE_MID0L, eaddr[1] << 8 | eaddr[0]);
-	CSR_WRITE_2(sc, VTE_MID0M, eaddr[3] << 8 | eaddr[2]);
-	CSR_WRITE_2(sc, VTE_MID0H, eaddr[5] << 8 | eaddr[4]);
 
 	/* Set TX descriptor base addresses. */
 	paddr = sc->vte_cdata.vte_tx_ring_map->dm_segs[0].ds_addr;
@@ -1351,7 +1349,7 @@ vte_init(struct ifnet *ifp)
 
 	/* Acknowledge all pending interrupts and clear it. */
 	CSR_WRITE_2(sc, VTE_MIER, VTE_INTRS);
-	CSR_WRITE_2(sc, VTE_MISR, 0);
+	CSR_READ_2(sc, VTE_MISR);
 	DPRINTF(("before ipend 0x%x 0x%x\n", CSR_READ_2(sc, VTE_MIER),
 		CSR_READ_2(sc, VTE_MISR)));
 
@@ -1360,10 +1358,9 @@ vte_init(struct ifnet *ifp)
 	ifp->if_flags &= ~IFF_OACTIVE;
 
 	/* calling mii_mediachg will call back vte_start_mac() */
-	if ((error = mii_mediachg(&sc->vte_mii)) == ENXIO)
-		error = 0;
-	else if (error != 0) {
-		aprint_error_dev(sc->vte_dev, "could not set media\n");
+	aprint_normal_dev(sc->vte_dev, "will call start mac\n");
+	error = vte_mediachange(ifp);
+	if (error != 0) {
 		splx(s);
 		return error;
 	}
@@ -1398,10 +1395,12 @@ vte_stop(struct ifnet *ifp, int disable)
 	/* Disable interrupts. */
 	CSR_WRITE_2(sc, VTE_MIER, 0);
 	CSR_WRITE_2(sc, VTE_MECIER, 0);
-	/* Stop RX/TX MACs. */
-	vte_stop_mac(sc);
 	/* Clear interrupts. */
 	CSR_READ_2(sc, VTE_MISR);
+	/* Stop RX/TX MACs. */
+	vte_stop_mac(sc);
+	vte_get_macaddr(sc);
+
 	/*
 	 * Free TX/RX mbufs still in the queues.
 	 */
@@ -1443,6 +1442,7 @@ vte_stop(struct ifnet *ifp, int disable)
 static void
 vte_start_mac(struct vte_softc *sc)
 {
+	aprint_normal_dev(sc->vte_dev, "calling start mac\n");
 	struct ifnet *ifp = &sc->vte_if;
 	uint16_t mcr;
 	int i;
@@ -1461,6 +1461,7 @@ vte_start_mac(struct vte_softc *sc)
 				break;
 			DELAY(10);
 		}
+		aprint_normal_dev(sc->vte_dev, "enabled rx/tx MAC\n");
 		if (i == 0)
 			aprint_error_dev(sc->vte_dev,
 			    "could not enable RX/TX MAC(0x%04x)!\n", mcr);
