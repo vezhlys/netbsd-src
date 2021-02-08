@@ -131,6 +131,7 @@ rdcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
 	struct rdcphy_softc *rsc = (struct rdcphy_softc *)sc;
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
+	uint16_t reg;
 
 	KASSERT(mii_locked(mii));
 
@@ -139,6 +140,17 @@ rdcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_MEDIACHG:
+		/*
+		 * If the media indicates a different PHY instance,
+		 * isolate ourselves.
+		 */
+		if (IFM_INST(ife->ifm_media) != sc->mii_inst) {
+			aprint_normal_dev(sc->mii_dev, "isolating myself\n");
+			PHY_READ(sc, MII_BMCR, &reg);
+			PHY_WRITE(sc, MII_BMCR, reg | BMCR_ISO);
+			return 0;
+		}
+
 		/* If the interface is not up, don't do anything. */
 		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
 			break;
@@ -251,3 +263,4 @@ rdcphy_status(struct mii_softc *sc)
 	else
 		mii->mii_media_active |= IFM_HDX;
 }
+
