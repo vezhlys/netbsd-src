@@ -200,13 +200,17 @@ acpi_md_findoverride(ACPI_SUBTABLE_HEADER *hdrp, void *aux)
 {
 	ACPI_MADT_INTERRUPT_OVERRIDE *iop;
 	struct acpi_md_override *ovrp;
+	iop = (void *)hdrp;
+	ovrp = aux;
 
+
+	aprint_debug("andvar: hdrp type %d\n", hdrp->Type);
+	aprint_debug("andvar: source pin %d, global pin %d, ovrp pin %d\n",
+		iop->SourceIrq, iop->GlobalIrq, ovrp->irq);
 	if (hdrp->Type != ACPI_MADT_TYPE_INTERRUPT_OVERRIDE) {
 		return AE_OK;
 	}
 
-	iop = (void *)hdrp;
-	ovrp = aux;
 	if (iop->SourceIrq == ovrp->irq) {
 		ovrp->pin = iop->GlobalIrq;
 		ovrp->flags = iop->IntiFlags;
@@ -273,6 +277,7 @@ acpi_md_intr_establish(uint32_t InterruptNumber, int ipl, int type,
 	}
 
 	if (ovr.pin != -1) {
+		aprint_debug("andvar: %d\n", ovr.pin);
 		bool sci = irq == AcpiGbl_FADT.SciInterrupt;
 		int polarity = ovr.flags & ACPI_MADT_POLARITY_MASK;
 		int trigger = ovr.flags & ACPI_MADT_TRIGGER_MASK;
