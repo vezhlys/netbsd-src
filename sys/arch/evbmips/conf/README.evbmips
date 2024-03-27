@@ -50,3 +50,4 @@ Notes:
 * "*eb"		targets are big-endian.
 * "*64-*"	targets are for 64-bit kernels.
 * "*(n)*"	targets build kernel with n64 ABI.
+* the 32bit userland usually used for 64bit kernels, but 64bit userland for n64
