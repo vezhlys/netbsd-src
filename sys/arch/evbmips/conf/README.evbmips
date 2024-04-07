@@ -1,5 +1,7 @@
 $NetBSD$
 
+The documentation is not final, more updates are coming.
+
 config		date		targets			boards
 -------------------------------------------------------------------------------------------------------------------------------------------------
 ADM5210		2007/03/20	evbmips-el		Infineon ADM5120 (MIPS32 4Kc) based boards and routers, 
@@ -60,4 +62,3 @@ Building target notes:
 Other notes:
 64-bit kernels can be built using N32 or N64 ABIs; they will run with a 64-bit
 kernel address space regardless of ABI.
-
