@@ -45,18 +45,19 @@ XLSATX64.MP	2011/02/20	evbmips(n)64-el,eb	XLSATX 64-bit MP kernel configuration.
 ZYXELKX		2014/04/30	evbmips-el		Zyxel Keenetic Extra router (MediaTek MT7620A).
 
 Configuration file notes:
-* "INSALL_*"	installation kernel configurations
+* "INSALL_*"	installation kernel configuration files
 		(typically enables hooks for initializing the root memory-disk).
 * "*.MP"	configuration files with the multiprocessor support enabled.
-* "*32"		N32 ABI kernel configurations.
+* "*32"		N32 ABI kernel configuration files
+		(can be build using evbmips64-* targets).
 Building target notes:
 * "*-el"	represent targets for building the little-endian kernel.
 * "*-eb"	represent targets for building the big-endian kernel.
-* "evbmips64-*"	represent targets for building N32 ABI kernel.
-* "evbmipsn64*"	represent targets for building N64 ABI kernel.
-
-mips64 kernels can be built using N32 or N64 ABIs but run with a 64-bit kernel
-address space regardless of ABI
-
-The 32-bit userland usually used for 64-bit kernels, but 64-bit userland for N64.
+* "evbmips64-*"	represent targets for building 64-bit (or N32 ABI) kernels and
+		mixed n32 (mostly)/n64 userland. 
+* "evbmipsn64*"	represent targets for building fully N64 ABI kernel and
+		userland.
+Other notes:
+64-bit kernels can be built using N32 or N64 ABIs, they will run with a 64-bit
+kernel address space regardless of ABI.
 
