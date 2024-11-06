@@ -1,4 +1,4 @@
-/*	$NetBSD: viaide.c,v 1.90 2024/10/17 17:15:33 andvar Exp $	*/
+/*	$NetBSD: viaide.c,v 1.89 2019/06/02 14:48:55 jdolecek Exp $	*/
 
 /*
  * Copyright (c) 1999, 2000, 2001 Manuel Bouyer.
@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__KERNEL_RCSID(0, "$NetBSD: viaide.c,v 1.90 2024/10/17 17:15:33 andvar Exp $");
+__KERNEL_RCSID(0, "$NetBSD: viaide.c,v 1.89 2019/06/02 14:48:55 jdolecek Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -53,7 +53,7 @@ static void	via_sata_chip_map_6(struct pciide_softc *,
 		    const struct pci_attach_args *);
 static void	via_sata_chip_map_7(struct pciide_softc *,
 		    const struct pci_attach_args *);
-static void	via_sata_chip_map_new(struct pciide_softc *,
+void	via_sata_chip_map_new(struct pciide_softc *,
 		    const struct pci_attach_args *);
 static void	via_setup_channel(struct ata_channel *);
 
@@ -1087,7 +1087,7 @@ via_vt6421_chansetup(struct pciide_softc *sc, int channel)
 	return 1;
 }
 
-static void
+void
 via_sata_chip_map_new(struct pciide_softc *sc,
     const struct pci_attach_args *pa)
 {
