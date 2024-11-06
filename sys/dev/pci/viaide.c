@@ -53,7 +53,7 @@ static void	via_sata_chip_map_6(struct pciide_softc *,
 		    const struct pci_attach_args *);
 static void	via_sata_chip_map_7(struct pciide_softc *,
 		    const struct pci_attach_args *);
-static void	via_sata_chip_map_new(struct pciide_softc *,
+void	via_sata_chip_map_new(struct pciide_softc *,
 		    const struct pci_attach_args *);
 static void	via_setup_channel(struct ata_channel *);
 
@@ -1192,7 +1192,7 @@ via_vt6421_chansetup(struct pciide_softc *sc, int channel)
 	return 1;
 }
 
-static void
+void
 via_sata_chip_map_new(struct pciide_softc *sc,
     const struct pci_attach_args *pa)
 {
