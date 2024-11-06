@@ -902,6 +902,7 @@ wdc*	at pcmcia? function ?
 # CardBus IDE controllers
 njata*	at cardbus? function ? flags 0x01	# Workbit NinjaATA-32
 siisata* at cardbus? function ? 		# SiI SteelVine controllers
+viaide* at cardbus? function ? 		# VIA VT6421 controller
 
 # ISA ST506, ESDI, and IDE controllers
 # Use flags 0x01 if you want to try to use 32bits data I/O (the driver will
