@@ -56,6 +56,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/mbuf.h>
 #include <sys/systm.h>
 
 #include <dev/cardbus/cardbusvar.h>
@@ -86,7 +87,7 @@ static bool viaide_cardbus_resume(device_t, const pmf_qual_t *);
 void via_sata_chip_map_new(struct pciide_softc *sc, const struct pci_attach_args *pa);
 
 static const struct pciide_product_desc  viaide_cardbus_products[] = {
-	{ PCI_PRODUCT_VIATECH_VT6410_RAID,
+	{ PCI_PRODUCT_VIATECH_VT6421_RAID,
 	  0,
 	  "VIA Technologies VT6421 Serial ATA RAID Controller",
 	  via_sata_chip_map_new
@@ -106,11 +107,17 @@ static const struct pciide_product_desc *
 viaide_cardbus_lookup(const struct cardbus_attach_args *ca)
 {
 	pcireg_t ca_id;
+	pci_product_id_t ca_product;
+	pci_class_t ca_class;
 	
 	ca_id = PCI_VENDOR(ca->ca_id);
+	ca_product = PCI_PRODUCT(ca->ca_id);
+	ca_class = PCI_CLASS(ca->ca_class);
 
-	if (ca_id == PCI_VENDOR_VIATECH)
-		return pciide_lookup_product(ca_id, viaide_cardbus_products);
+	aprint_debug("VIA cardbus lookup 0x%04x 0x%04x\n", ca_id, ca_product);
+
+	if (ca_id == PCI_VENDOR_VIATECH && ca_class == PCI_CLASS_MASS_STORAGE)
+		return pciide_lookup_product(ca->ca_id, viaide_cardbus_products);
 
 	return NULL;
 }
@@ -144,9 +151,8 @@ viaide_cardbus_attach(device_t parent, device_t self, void *aux)
 	csc->sc_cf = cf;
 	csc->sc_ct = ct;
 	csc->sc_tag = ca->ca_tag;
-	
+
 	sc->sc_wdcdev.sc_atac.atac_dev = self;
-	
 
 	/*
 	 * Map the device.
@@ -163,6 +169,7 @@ viaide_cardbus_attach(device_t parent, device_t self, void *aux)
 	csc->sc_memt = ca->ca_memt;
 	csc->sc_rbus_iot = ca->ca_rbus_iot;
 	csc->sc_rbus_memt = ca->ca_rbus_memt;
+	csc->sc_tag = ca->ca_tag;
 
 	pci_devinfo(ca->ca_id, ca->ca_class, 0, devinfo, sizeof(devinfo));
 	aprint_naive(": SATA HBA\n");
@@ -171,6 +178,8 @@ viaide_cardbus_attach(device_t parent, device_t self, void *aux)
 	/* map interrupt */
 	csc->sc_ih = Cardbus_intr_establish(ct, IPL_BIO, pciide_pci_intr, sc);
 	const struct pciide_product_desc * pp = viaide_cardbus_lookup(ca);
+	pca = malloc(sizeof(struct pci_attach_args), M_DEVBUF, M_WAIT|M_ZERO);
+	pca->pa_bus = ca->ca_bus;
 	pca->pa_iot = ca->ca_iot;
 	pca->pa_memt = ca->ca_memt;
 	pca->pa_dmat = ca->ca_dmat;
@@ -179,6 +188,8 @@ viaide_cardbus_attach(device_t parent, device_t self, void *aux)
 	pca->pa_class = ca->ca_class;
 	pca->pa_id = ca->ca_id;
 	pca->pa_device = ca->ca_cis.product;
+	pca->pa_flags = ca->ca_cis.bar[5].flags;
+	//pca->pa_flags |= PCI_FLAGS_IO_OKAY;
 
 	pciide_common_attach(sc, pca, pp);
 
@@ -201,6 +212,7 @@ viaide_cardbus_detach(device_t self, int flags)
 		Cardbus_intr_disestablish(ct, csc->sc_ih);
 		csc->sc_ih = NULL;
 	}
+	free(sc, M_DEVBUF);
 
 	return 0;
 }
