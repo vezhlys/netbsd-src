@@ -300,9 +300,9 @@ static const struct pciide_product_desc pciide_via_products[] =  {
 	  via_chip_map,
 	},
 	{ PCI_PRODUCT_VIATECH_CX700_IDE,
-	  0,
+	  HAS_PATA_CHANNEL,
 	  NULL,
-	  via_sata_chip_map_new,
+	  via_sata_chip_map_7,
 	},
 	{ PCI_PRODUCT_VIATECH_CX700M2_IDE,
 	  0,
@@ -891,6 +891,13 @@ pio:		/* setup PIO mode */
 	    pci_conf_read(sc->sc_pc, sc->sc_tag, APO_UDMA(sc))), DEBUG_PROBE);
 }
 
+static void via_sata_pata_setup_channel(struct ata_channel *chp) {
+	if (chp->ch_channel == 0)
+		sata_setup_channel(chp);
+	else
+		via_setup_channel(chp);
+}
+
 static int
 via_sata_chip_map_common(struct pciide_softc *sc,
     const struct pci_attach_args *cpa)
@@ -920,7 +927,12 @@ via_sata_chip_map_common(struct pciide_softc *sc,
 	sc->sc_wdcdev.sc_atac.atac_channels = sc->wdc_chanarray;
 	sc->sc_wdcdev.sc_atac.atac_nchannels = PCIIDE_NUM_CHANNELS;
 	sc->sc_wdcdev.sc_atac.atac_cap |= ATAC_CAP_DATA16 | ATAC_CAP_DATA32;
-	sc->sc_wdcdev.sc_atac.atac_set_modes = sata_setup_channel;
+	if (sc->sc_pp->ide_flags & HAS_PATA_CHANNEL) {
+		sc->sc_wdcdev.sc_atac.atac_set_modes = via_sata_pata_setup_channel;
+		sc->sc_apo_regbase = APO_VIA_CX700_REGBASE;
+	}
+	else
+		sc->sc_wdcdev.sc_atac.atac_set_modes = sata_setup_channel;
 	sc->sc_wdcdev.wdc_maxdrives = 2;
 
 	if (PCI_CLASS(pa->pa_class) == PCI_CLASS_MASS_STORAGE &&
@@ -928,6 +940,9 @@ via_sata_chip_map_common(struct pciide_softc *sc,
 		sc->sc_wdcdev.sc_atac.atac_cap |= ATAC_CAP_RAID;
 
 	wdc_allocate_regs(&sc->sc_wdcdev);
+	if (sc->sc_pp->ide_flags & HAS_PATA_CHANNEL) {
+		return 1;
+	}
 	maptype = pci_mapreg_type(pa->pa_pc, pa->pa_tag,
 	    PCI_MAPREG_START + 0x14);
 	switch(maptype) {
@@ -991,8 +1006,11 @@ via_sata_chip_map(struct pciide_softc *sc, const struct pci_attach_args *pa,
 		    PCIIDE_INTERFACE_PCI(0) | PCIIDE_INTERFACE_PCI(1);
 	}
 
-	sc->sc_wdcdev.sc_atac.atac_probe = wdc_sataprobe;
-	sc->sc_wdcdev.wdc_maxdrives = 1;
+	if ((sc->sc_pp->ide_flags & HAS_PATA_CHANNEL) == 0) {
+		sc->sc_wdcdev.sc_atac.atac_probe = wdc_sataprobe;
+		sc->sc_wdcdev.wdc_maxdrives = 1;
+	}
+
 	for (channel = 0; channel < sc->sc_wdcdev.sc_atac.atac_nchannels;
 	     channel++) {
 		cp = &sc->pciide_channels[channel];
@@ -1000,6 +1018,12 @@ via_sata_chip_map(struct pciide_softc *sc, const struct pci_attach_args *pa,
 			continue;
 		wdc_cp = &cp->ata_channel;
 		wdr = CHAN_TO_WDC_REGS(wdc_cp);
+		if (sc->sc_pp->ide_flags & HAS_PATA_CHANNEL) {
+			if (channel == 1) {
+				via_mapchan(pa, cp, interface, pciide_pci_intr);
+				continue;
+			}
+		}
 		wdr->sata_iot = sc->sc_ba5_st;
 		wdr->sata_baseioh = sc->sc_ba5_sh;
 		if (bus_space_subregion(wdr->sata_iot, wdr->sata_baseioh,

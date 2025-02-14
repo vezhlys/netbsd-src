@@ -180,6 +180,7 @@ struct pciide_product_desc {
 /* Flags for ide_flags */
 #define	IDE_16BIT_IOSPACE	0x0002 /* I/O space BARS ignore upper word */
 #define	IDE_SHARED_CHANNELS	0x0004 /* channels are not independent */
+#define	HAS_PATA_CHANNEL	0x0006 /* one SATA/one PATA channel */
 
 
 /* inlines for reading/writing 8-bit PCI registers */
