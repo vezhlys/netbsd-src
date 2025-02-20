@@ -301,17 +301,17 @@ static const struct pciide_product_desc pciide_via_products[] =  {
 	},
 	{ PCI_PRODUCT_VIATECH_CX700_IDE,
 	  HAS_PATA_CHANNEL,
-	  NULL,
+	  "VIA Technologies CX700(M2)/VX700/VX800 SATA/IDE RAID Controller",
 	  via_sata_chip_map_7,
 	},
 	{ PCI_PRODUCT_VIATECH_CX700M2_IDE,
 	  0,
-	  NULL,
+	  "VIA Technologies CX700(M2)/VX700/VX800 SATA/IDE Controller",
 	  via_chip_map,
 	},
 	{ PCI_PRODUCT_VIATECH_VX900_IDE,
 	  0,
-	  NULL,
+	  "VIA Technologies VX900 SATA controller",
 	  via_chip_map,
 	},
 	{ PCI_PRODUCT_VIATECH_VT6410_RAID,
@@ -484,11 +484,10 @@ via_chip_map(struct pciide_softc *sc, const struct pci_attach_args *pa)
 			    PCIIDE_INTERFACE_PCI(0) | PCIIDE_INTERFACE_PCI(1);
 			break;
 		case PCI_PRODUCT_VIATECH_VT8261_SATA:
-			sc->sc_wdcdev.sc_atac.atac_udma_cap = 6;
-			break;
+			/* FALLTHROUGH */
+		case PCI_PRODUCT_VIATECH_CX700M2_IDE:
+			/* FALLTHROUGH */
 		case PCI_PRODUCT_VIATECH_VX900_IDE:
-			aprint_normal_dev(sc->sc_wdcdev.sc_atac.atac_dev,
-			    "VIA Technologies VX900 ATA133 controller\n");
 			sc->sc_wdcdev.sc_atac.atac_udma_cap = 6;
 			break;
 		default:
@@ -556,20 +555,12 @@ via_chip_map(struct pciide_softc *sc, const struct pci_attach_args *pa)
 				aprint_normal("VT8237A ATA133 controller\n");
 				sc->sc_wdcdev.sc_atac.atac_udma_cap = 6;
 				break;
-			case PCI_PRODUCT_VIATECH_CX700:
-				aprint_normal("CX700 ATA133 controller\n");
-				sc->sc_wdcdev.sc_atac.atac_udma_cap = 6;
-				break;
 			case PCI_PRODUCT_VIATECH_VT8251:
 				aprint_normal("VT8251 ATA133 controller\n");
 				sc->sc_wdcdev.sc_atac.atac_udma_cap = 6;
 				break;
 			case PCI_PRODUCT_VIATECH_VT8261:
 				aprint_normal("VT8261 ATA133 controller\n");
-				sc->sc_wdcdev.sc_atac.atac_udma_cap = 6;
-				break;
-			case PCI_PRODUCT_VIATECH_VX800:
-				aprint_normal("VX800 ATA133 controller\n");
 				sc->sc_wdcdev.sc_atac.atac_udma_cap = 6;
 				break;
 			case PCI_PRODUCT_VIATECH_VX855:

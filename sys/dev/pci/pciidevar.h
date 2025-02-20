@@ -180,7 +180,15 @@ struct pciide_product_desc {
 /* Flags for ide_flags */
 #define	IDE_16BIT_IOSPACE	0x0002 /* I/O space BARS ignore upper word */
 #define	IDE_SHARED_CHANNELS	0x0004 /* channels are not independent */
-#define	HAS_PATA_CHANNEL	0x0006 /* one SATA/one PATA channel */
+/*
+ * VIA CX700(M/M2)/VX700/VX800 has one SATA and one PATA channel sharing
+ * the same PCI ID. In RAID mode, channels must be configured based on their
+ * respective interfaces.
+ *
+ * For details, refer to VX800 / VX820 Series System Programming Manual
+ * https://bitsavers.trailing-edge.com/components/viaTechnologies/VX800_VX820_Series_System_Programming_Manual_Rev_.95_200806.pdf
+ */
+#define	HAS_PATA_CHANNEL	0x0006
 
 
 /* inlines for reading/writing 8-bit PCI registers */
