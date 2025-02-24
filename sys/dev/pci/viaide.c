@@ -931,9 +931,10 @@ via_sata_chip_map_common(struct pciide_softc *sc,
 		sc->sc_wdcdev.sc_atac.atac_cap |= ATAC_CAP_RAID;
 
 	wdc_allocate_regs(&sc->sc_wdcdev);
-	if (sc->sc_pp->ide_flags & HAS_PATA_CHANNEL) {
+
+	if (sc->sc_pp->ide_flags & HAS_PATA_CHANNEL)
 		return 1;
-	}
+
 	maptype = pci_mapreg_type(pa->pa_pc, pa->pa_tag,
 	    PCI_MAPREG_START + 0x14);
 	switch(maptype) {
@@ -1009,12 +1010,11 @@ via_sata_chip_map(struct pciide_softc *sc, const struct pci_attach_args *pa,
 			continue;
 		wdc_cp = &cp->ata_channel;
 		wdr = CHAN_TO_WDC_REGS(wdc_cp);
-		if (sc->sc_pp->ide_flags & HAS_PATA_CHANNEL) {
+		if (sc->sc_pp->ide_flags & HAS_PATA_CHANNEL)
 			if (channel == 1) {
 				via_mapchan(pa, cp, interface, pciide_pci_intr);
 				continue;
 			}
-		}
 		wdr->sata_iot = sc->sc_ba5_st;
 		wdr->sata_baseioh = sc->sc_ba5_sh;
 		if (bus_space_subregion(wdr->sata_iot, wdr->sata_baseioh,
