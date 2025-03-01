@@ -300,18 +300,18 @@ static const struct pciide_product_desc pciide_via_products[] =  {
 	  via_chip_map,
 	},
 	{ PCI_PRODUCT_VIATECH_CX700_IDE,
-	  0,
-	  NULL,
-	  via_sata_chip_map_new,
+	  HAS_PATA_CHANNEL,
+	  "VIA Technologies CX700(M2)/VX700/VX800 SATA/IDE RAID Controller",
+	  via_sata_chip_map_7,
 	},
 	{ PCI_PRODUCT_VIATECH_CX700M2_IDE,
 	  0,
-	  NULL,
+	  "VIA Technologies CX700(M2)/VX700/VX800 SATA/IDE Controller",
 	  via_chip_map,
 	},
 	{ PCI_PRODUCT_VIATECH_VX900_IDE,
 	  0,
-	  NULL,
+	  "VIA Technologies VX900 SATA controller",
 	  via_chip_map,
 	},
 	{ PCI_PRODUCT_VIATECH_VT6410_RAID,
@@ -484,11 +484,10 @@ via_chip_map(struct pciide_softc *sc, const struct pci_attach_args *pa)
 			    PCIIDE_INTERFACE_PCI(0) | PCIIDE_INTERFACE_PCI(1);
 			break;
 		case PCI_PRODUCT_VIATECH_VT8261_SATA:
-			sc->sc_wdcdev.sc_atac.atac_udma_cap = 6;
-			break;
+			/* FALLTHROUGH */
+		case PCI_PRODUCT_VIATECH_CX700M2_IDE:
+			/* FALLTHROUGH */
 		case PCI_PRODUCT_VIATECH_VX900_IDE:
-			aprint_normal_dev(sc->sc_wdcdev.sc_atac.atac_dev,
-			    "VIA Technologies VX900 ATA133 controller\n");
 			sc->sc_wdcdev.sc_atac.atac_udma_cap = 6;
 			break;
 		default:
@@ -556,20 +555,12 @@ via_chip_map(struct pciide_softc *sc, const struct pci_attach_args *pa)
 				aprint_normal("VT8237A ATA133 controller\n");
 				sc->sc_wdcdev.sc_atac.atac_udma_cap = 6;
 				break;
-			case PCI_PRODUCT_VIATECH_CX700:
-				aprint_normal("CX700 ATA133 controller\n");
-				sc->sc_wdcdev.sc_atac.atac_udma_cap = 6;
-				break;
 			case PCI_PRODUCT_VIATECH_VT8251:
 				aprint_normal("VT8251 ATA133 controller\n");
 				sc->sc_wdcdev.sc_atac.atac_udma_cap = 6;
 				break;
 			case PCI_PRODUCT_VIATECH_VT8261:
 				aprint_normal("VT8261 ATA133 controller\n");
-				sc->sc_wdcdev.sc_atac.atac_udma_cap = 6;
-				break;
-			case PCI_PRODUCT_VIATECH_VX800:
-				aprint_normal("VX800 ATA133 controller\n");
 				sc->sc_wdcdev.sc_atac.atac_udma_cap = 6;
 				break;
 			case PCI_PRODUCT_VIATECH_VX855:
@@ -891,6 +882,13 @@ pio:		/* setup PIO mode */
 	    pci_conf_read(sc->sc_pc, sc->sc_tag, APO_UDMA(sc))), DEBUG_PROBE);
 }
 
+static void via_sata_pata_setup_channel(struct ata_channel *chp) {
+	if (chp->ch_channel == 0)
+		sata_setup_channel(chp);
+	else
+		via_setup_channel(chp);
+}
+
 static int
 via_sata_chip_map_common(struct pciide_softc *sc,
     const struct pci_attach_args *cpa)
@@ -920,7 +918,12 @@ via_sata_chip_map_common(struct pciide_softc *sc,
 	sc->sc_wdcdev.sc_atac.atac_channels = sc->wdc_chanarray;
 	sc->sc_wdcdev.sc_atac.atac_nchannels = PCIIDE_NUM_CHANNELS;
 	sc->sc_wdcdev.sc_atac.atac_cap |= ATAC_CAP_DATA16 | ATAC_CAP_DATA32;
-	sc->sc_wdcdev.sc_atac.atac_set_modes = sata_setup_channel;
+	if (sc->sc_pp->ide_flags & HAS_PATA_CHANNEL) {
+		sc->sc_wdcdev.sc_atac.atac_set_modes = via_sata_pata_setup_channel;
+		sc->sc_apo_regbase = APO_VIA_CX700_REGBASE;
+	}
+	else
+		sc->sc_wdcdev.sc_atac.atac_set_modes = sata_setup_channel;
 	sc->sc_wdcdev.wdc_maxdrives = 2;
 
 	if (PCI_CLASS(pa->pa_class) == PCI_CLASS_MASS_STORAGE &&
@@ -928,6 +931,10 @@ via_sata_chip_map_common(struct pciide_softc *sc,
 		sc->sc_wdcdev.sc_atac.atac_cap |= ATAC_CAP_RAID;
 
 	wdc_allocate_regs(&sc->sc_wdcdev);
+
+	if (sc->sc_pp->ide_flags & HAS_PATA_CHANNEL)
+		return 1;
+
 	maptype = pci_mapreg_type(pa->pa_pc, pa->pa_tag,
 	    PCI_MAPREG_START + 0x14);
 	switch(maptype) {
@@ -991,8 +998,11 @@ via_sata_chip_map(struct pciide_softc *sc, const struct pci_attach_args *pa,
 		    PCIIDE_INTERFACE_PCI(0) | PCIIDE_INTERFACE_PCI(1);
 	}
 
-	sc->sc_wdcdev.sc_atac.atac_probe = wdc_sataprobe;
-	sc->sc_wdcdev.wdc_maxdrives = 1;
+	if ((sc->sc_pp->ide_flags & HAS_PATA_CHANNEL) == 0) {
+		sc->sc_wdcdev.sc_atac.atac_probe = wdc_sataprobe;
+		sc->sc_wdcdev.wdc_maxdrives = 1;
+	}
+
 	for (channel = 0; channel < sc->sc_wdcdev.sc_atac.atac_nchannels;
 	     channel++) {
 		cp = &sc->pciide_channels[channel];
@@ -1000,6 +1010,11 @@ via_sata_chip_map(struct pciide_softc *sc, const struct pci_attach_args *pa,
 			continue;
 		wdc_cp = &cp->ata_channel;
 		wdr = CHAN_TO_WDC_REGS(wdc_cp);
+		if (sc->sc_pp->ide_flags & HAS_PATA_CHANNEL)
+			if (channel == 1) {
+				via_mapchan(pa, cp, interface, pciide_pci_intr);
+				continue;
+			}
 		wdr->sata_iot = sc->sc_ba5_st;
 		wdr->sata_baseioh = sc->sc_ba5_sh;
 		if (bus_space_subregion(wdr->sata_iot, wdr->sata_baseioh,

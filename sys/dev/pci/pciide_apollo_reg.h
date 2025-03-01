@@ -92,6 +92,7 @@
 #define APO_AMD_REGBASE			0x40
 #define APO_NVIDIA_REGBASE		0x50
 #define APO_VIA_VT6421_REGBASE		0xa0
+#define APO_VIA_CX700_REGBASE		0xc0
 
 /* misc. configuration registers */
 #define APO_IDECONF(sc) ((sc)->sc_apo_regbase + 0x00)
