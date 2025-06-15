@@ -64,6 +64,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <dev/pci/pciidereg.h>
 #include <dev/pci/pciidevar.h>
 
+#define PCI_CBMEM 0x10
 struct viaide_cardbus_softc {
 	struct pciide_softc si_sc;
 	cardbus_chipset_tag_t sc_cc;
@@ -74,9 +75,6 @@ struct viaide_cardbus_softc {
 	bus_space_tag_t sc_memt;	/* CardBus MEM space tag */
 	rbus_tag_t sc_rbus_iot;		/* CardBus i/o rbus tag */
 	rbus_tag_t sc_rbus_memt;	/* CardBus mem rbus tag */
-
-	bus_size_t sc_grsize;
-	bus_size_t sc_prsize;
 	void *sc_ih;
 };
 
@@ -147,6 +145,14 @@ viaide_cardbus_attach(device_t parent, device_t self, void *aux)
 	int csr;
 	char devinfo[256];
 	
+	
+	/* Map I/O registers */
+	if (Cardbus_mapreg_map(ct, PCI_CBMEM, PCI_MAPREG_TYPE_MEM, 0,
+			   &csc->si_sc.sc_dma_iot, &csc->si_sc.sc_dma_ioh, NULL, &csc->si_sc.sc_dma_ios)) {
+		aprint_error_dev(self, "can't map mem space\n");
+		return;
+	}
+	
 	csc->sc_cc = cc;
 	csc->sc_cf = cf;
 	csc->sc_ct = ct;
@@ -161,7 +167,8 @@ viaide_cardbus_attach(device_t parent, device_t self, void *aux)
   
 	/* Enable the appropriate bits in the PCI CSR. */
 	reg = Cardbus_conf_read(ct, ca->ca_tag, PCI_COMMAND_STATUS_REG);
-	reg &= ~(PCI_COMMAND_IO_ENABLE|PCI_COMMAND_MEM_ENABLE);
+	csr |= PCI_COMMAND_IO_ENABLE;
+	csr |= PCI_COMMAND_MEM_ENABLE;
 	reg |= csr;
 	Cardbus_conf_write(ct, ca->ca_tag, PCI_COMMAND_STATUS_REG, reg);
 
@@ -189,7 +196,7 @@ viaide_cardbus_attach(device_t parent, device_t self, void *aux)
 	pca->pa_id = ca->ca_id;
 	pca->pa_device = ca->ca_cis.product;
 	pca->pa_flags = ca->ca_cis.bar[5].flags;
-	//pca->pa_flags |= PCI_FLAGS_IO_OKAY;
+	pca->pa_flags |= PCI_FLAGS_IO_OKAY;
 
 	pciide_common_attach(sc, pca, pp);
 
