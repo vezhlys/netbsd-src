@@ -70,7 +70,7 @@ __KERNEL_RCSID(0, "$NetBSD: viapcib.c,v 1.20 2025/09/15 13:23:01 thorpej Exp $")
 
 #include <dev/i2c/i2cvar.h>
 
-#include <i386/pci/viapcibreg.h>
+#include <x86/pci/viapcibreg.h>
 #include <x86/pci/pcibvar.h>
 
 /*#define VIAPCIB_DEBUG*/
@@ -144,6 +144,14 @@ viapcib_match(device_t parent, cfdata_t match, void *opaque)
 	case PCI_PRODUCT_VIATECH_VT8235:
 	case PCI_PRODUCT_VIATECH_VT8237:
 	case PCI_PRODUCT_VIATECH_VT8237A_ISA:
+	case PCI_PRODUCT_VIATECH_VT8237S_ISA:
+	case PCI_PRODUCT_VIATECH_VT8251:
+	case PCI_PRODUCT_VIATECH_VT8261:
+	case PCI_PRODUCT_VIATECH_CX700:
+	case PCI_PRODUCT_VIATECH_VX800:
+	case PCI_PRODUCT_VIATECH_VX855:
+	case PCI_PRODUCT_VIATECH_VX900:
+	//case PCI_PRODUCT_VIATECH_VX11_ISA:
 		return 2; /* match above generic pcib(4) */
 	}
 
@@ -212,6 +220,21 @@ core_pcib:
 		sc->sc_i2c.ic_exec = viapcib_exec;
 
 		iicbus_attach(self, &sc->sc_i2c);
+		    
+
+		uint8_t cmd = 0x00;
+		uint8_t buf[16];
+		int error = iic_exec(iba.iba_tag, I2C_OP_READ_WITH_STOP, 0x69,
+	                 &cmd, 1, buf, sizeof(buf), 0);
+		if (error) {
+			printf("[iictest] iic_exec failed: %d\n", error);
+			return;
+		}
+
+		printf("[iictest] Read from 0x69:");
+		for (int i = 0; i < sizeof(buf); i++)
+			printf(" %02x", buf[i]);
+		printf("\n");
 	}
 }
 

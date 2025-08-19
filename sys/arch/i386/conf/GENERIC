@@ -692,7 +692,7 @@ nsclpcsio*	at isa?
 #ug0	at isa? port 0xe0
 
 # VIA VT82C686A/VT8231 Hardware Monitor and Power Management Timer
-#viaenv* 	at pci? dev ? function ?
+viaenv* 	at pci? dev ? function ?
 
 # Serial Presence Detect capable memory modules
 #spdmem* at iic? addr 0x50
