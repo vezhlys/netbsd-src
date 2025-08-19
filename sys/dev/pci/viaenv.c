@@ -94,15 +94,18 @@ static int
 viaenv_match(device_t parent, cfdata_t match, void *aux)
 {
 	struct pci_attach_args *pa = aux;
-
+	aprint_normal("andvar: viaenv match\n");
 	if (PCI_VENDOR(pa->pa_id) != PCI_VENDOR_VIATECH)
 		return 0;
 
 	switch (PCI_PRODUCT(pa->pa_id)) {
 	case PCI_PRODUCT_VIATECH_VT82C686A_PWR:
 	case PCI_PRODUCT_VIATECH_VT8231_PWR:
-		return 1;
+	case PCI_PRODUCT_VIATECH_VX900:
+		aprint_normal("andvar: viaenv matched\n");
+		return 3;
 	default:
+		aprint_normal("andvar: viaenv did not match %d\n", PCI_PRODUCT(pa->pa_id));
 		return 0;
 	}
 }
@@ -202,9 +205,11 @@ val_to_uV(unsigned int val, int index)
 #define VIAENV_TIRQ	0x4b	/* temperature interrupt configuration */
 
 #define VIAENV_GENCFG	0x40	/* general configuration */
+#define VIAENV_GENCFG2	0x80	/* general configuration */
 #define VIAENV_GENCFG_TMR32	(1 << 11)	/* 32-bit PM timer */
 #define VIAENV_GENCFG_PMEN	(1 << 15)	/* enable PM I/O space */
 #define VIAENV_PMBASE	0x48	/* power management I/O space base */
+#define VIAENV_PMBASE2	0x88	/* power management I/O space base */
 #define VIAENV_PMSIZE	128	/* HWM and power management I/O space size */
 #define VIAENV_PM_TMR	0x08	/* PM timer */
 #define VIAENV_HWMON_CONF	0x70	/* HWMon I/O base */
@@ -280,23 +285,55 @@ viaenv_attach(device_t parent, device_t self, void *aux)
 	struct pci_attach_args *pa = aux;
 	pcireg_t iobase, control;
 	int i;
+	int has_hw_mon; // only VT82C686A and VT8231 has hardware monitor
 
 	aprint_naive("\n");
 	aprint_normal(": VIA Technologies ");
 	switch (PCI_PRODUCT(pa->pa_id)) {
 	case PCI_PRODUCT_VIATECH_VT82C686A_PWR:
+		has_hw_mon = 1;
 		aprint_normal("VT82C686A Hardware Monitor\n");
 		break;
 	case PCI_PRODUCT_VIATECH_VT8231_PWR:
+		has_hw_mon = 1;
 		aprint_normal("VT8231 Hardware Monitor\n");
 		break;
+	case PCI_PRODUCT_VIATECH_VX900:
+		has_hw_mon = 0;
+		aprint_normal("VX900 Power Management Controller\n");
+		break;
 	default:
+		has_hw_mon = 0;
 		aprint_normal("Unknown Hardware Monitor\n");
 		break;
 	}
 
 	sc->sc_iot = pa->pa_iot;
 
+	/* Check if power management I/O space is enabled */
+	control = pci_conf_read(pa->pa_pc, pa->pa_tag, has_hw_mon ? VIAENV_GENCFG : VIAENV_GENCFG2);
+	if ((control & VIAENV_GENCFG_PMEN) == 0) {
+                aprint_normal_dev(self,
+		    "Power Managament controller disabled\n");
+                goto nopm;
+        }
+
+        /* Map power management I/O space */
+        iobase = pci_conf_read(pa->pa_pc, pa->pa_tag, has_hw_mon ? VIAENV_PMBASE : VIAENV_PMBASE2);
+        if (bus_space_map(sc->sc_iot, PCI_MAPREG_IO_ADDR(iobase & 0xff80),
+            VIAENV_PMSIZE, 0, &sc->sc_pm_ioh)) {
+                aprint_error_dev(self, "failed to map PM I/O space\n");
+                goto nopm;
+        }
+
+	/* Attach our PM timer with the generic acpipmtimer function */
+	acpipmtimer_attach(self, sc->sc_iot, sc->sc_pm_ioh,
+	    VIAENV_PM_TMR,
+	    ((control & VIAENV_GENCFG_TMR32) ? ACPIPMT_32BIT : 0));
+	if (!has_hw_mon)
+		goto nohwm;
+
+nopm:
 	iobase = pci_conf_read(pa->pa_pc, pa->pa_tag, VIAENV_HWMON_CONF);
 	DPRINTF(("%s: iobase 0x%x\n", device_xname(self), iobase));
 	control = pci_conf_read(pa->pa_pc, pa->pa_tag, VIAENV_HWMON_CTL);
@@ -371,30 +408,7 @@ viaenv_attach(device_t parent, device_t self, void *aux)
 		sysmon_envsys_destroy(sc->sc_sme);
 		return;
 	}
-
 nohwm:
-	/* Check if power management I/O space is enabled */
-	control = pci_conf_read(pa->pa_pc, pa->pa_tag, VIAENV_GENCFG);
-	if ((control & VIAENV_GENCFG_PMEN) == 0) {
-                aprint_normal_dev(self,
-		    "Power Managament controller disabled\n");
-                goto nopm;
-        }
-
-        /* Map power management I/O space */
-        iobase = pci_conf_read(pa->pa_pc, pa->pa_tag, VIAENV_PMBASE);
-        if (bus_space_map(sc->sc_iot, PCI_MAPREG_IO_ADDR(iobase),
-            VIAENV_PMSIZE, 0, &sc->sc_pm_ioh)) {
-                aprint_error_dev(self, "failed to map PM I/O space\n");
-                goto nopm;
-        }
-
-	/* Attach our PM timer with the generic acpipmtimer function */
-	acpipmtimer_attach(self, sc->sc_iot, sc->sc_pm_ioh,
-	    VIAENV_PM_TMR,
-	    ((control & VIAENV_GENCFG_TMR32) ? ACPIPMT_32BIT : 0));
-
-nopm:
 	return;
 }
 

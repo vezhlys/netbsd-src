@@ -406,8 +406,15 @@ pwdog*	at pci? dev ? function ?	# QUANCOM PWDOG1
 
 ichlpcib* at pci? dev ? function ?	# Intel ICH PCI-LPC w/ timecounter,
 					# watchdog, gpio, Speedstep and HPET
+
+viapcib* at pci? dev ? function ?	# VIA PCI-ISA w/ SMBus support
+iic*	at viapcib?
+
+# VIA VT82C686A/VT8231 Hardware Monitor and Power Management Timer
+viaenv*	at pci? dev ? function ?
+
 fwhrng* at ichlpcib?		# Intel 82802 FWH Random Number Generator
-#hpet*	at ichlpcib?
+hpet*	at ichlpcib?
 tco*	at tcoichbus?		# TCO watch dog timer
 
 aapic*	at pci? dev ? function ?	# AMD 8131 IO apic
@@ -419,6 +426,7 @@ isa0	at mainbus?
 isa0	at pcib?
 #isa0	at amdpcib?
 isa0	at ichlpcib?
+isa0	at viapcib?
 
 # CardBus bridge support
 cbb*		at pci? dev ? function ?
@@ -587,14 +595,14 @@ iic*		at dwiic?
 #finsio0 	at isa? port 0x4e
 
 # iTE IT87xxF Super I/O with watchdog and sensors support
-#itesio0 	at isa? port 0x2e
+itesio0 	at isa? port 0x2e
 
 # Abit uGuru Hardware system monitor
 #ug0	at isa? port 0xe0
 
 # Serial Presence Detect capable memory modules
-#spdmem* at iic? addr 0x50
-#spdmem* at iic? addr 0x51
+spdmem* at iic? addr 0x50
+spdmem* at iic? addr 0x51
 #spdmem* at iic? addr 0x52
 #spdmem* at iic? addr 0x53
 #spdmem* at iic? addr 0x54
