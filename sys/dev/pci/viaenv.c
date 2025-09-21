@@ -298,10 +298,6 @@ viaenv_attach(device_t parent, device_t self, void *aux)
 		has_hw_mon = 1;
 		aprint_normal("VT8231 Hardware Monitor\n");
 		break;
-	case PCI_PRODUCT_VIATECH_VX900:
-		has_hw_mon = 0;
-		aprint_normal("VX900 Power Management Controller\n");
-		break;
 	default:
 		has_hw_mon = 0;
 		aprint_normal("Unknown Hardware Monitor\n");
@@ -313,18 +309,18 @@ viaenv_attach(device_t parent, device_t self, void *aux)
 	/* Check if power management I/O space is enabled */
 	control = pci_conf_read(pa->pa_pc, pa->pa_tag, has_hw_mon ? VIAENV_GENCFG : VIAENV_GENCFG2);
 	if ((control & VIAENV_GENCFG_PMEN) == 0) {
-                aprint_normal_dev(self,
+		aprint_normal_dev(self,
 		    "Power Managament controller disabled\n");
-                goto nopm;
-        }
+		goto nopm;
+	}
 
-        /* Map power management I/O space */
-        iobase = pci_conf_read(pa->pa_pc, pa->pa_tag, has_hw_mon ? VIAENV_PMBASE : VIAENV_PMBASE2);
-        if (bus_space_map(sc->sc_iot, PCI_MAPREG_IO_ADDR(iobase & 0xff80),
-            VIAENV_PMSIZE, 0, &sc->sc_pm_ioh)) {
-                aprint_error_dev(self, "failed to map PM I/O space\n");
-                goto nopm;
-        }
+	/* Map power management I/O space */
+	iobase = pci_conf_read(pa->pa_pc, pa->pa_tag, has_hw_mon ? VIAENV_PMBASE : VIAENV_PMBASE2);
+	if (bus_space_map(sc->sc_iot, PCI_MAPREG_IO_ADDR(iobase & 0xff80),
+		VIAENV_PMSIZE, 0, &sc->sc_pm_ioh)) {
+			aprint_error_dev(self, "failed to map PM I/O space\n");
+			goto nopm;
+	}
 
 	/* Attach our PM timer with the generic acpipmtimer function */
 	acpipmtimer_attach(self, sc->sc_iot, sc->sc_pm_ioh,

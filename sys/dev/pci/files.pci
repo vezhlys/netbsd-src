@@ -1010,6 +1010,12 @@ device	ichsmb: i2cbus, tcoichbus
 attach	ichsmb at pci
 file	dev/pci/ichsmb.c		ichsmb
 
+# VIA SMBus controller
+define	viadevbus {}
+device	viasmb: i2cbus
+attach	viasmb at viadevbus
+file	dev/pci/viasmb.c		viasmb
+
 # ATI Rage 128 framebuffer console driver
 device	r128fb: wsemuldisplaydev, rasops8, rasops32, vcons, glyphcache
 attach	r128fb at pci

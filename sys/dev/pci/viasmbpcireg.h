@@ -28,33 +28,15 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _SYS_SMBUS_VIASMBREG_H
-#define _SYS_SMBUS_VIASMBREG_H
+#ifndef _SYS_DEV_PCI_VIASMBPCIREG_H
+#define _SYS_DEV_PCI_VIASMBPCIREG_H
 
-/* SMBus register offsets; from Linux and FreeBSD */
-#define	SMBHSTSTS		0x00
-#define		SMBHSTSTS_BUSY		0x01
-#define		SMBHSTSTS_INTR		0x02
-#define		SMBHSTSTS_ERROR		0x04
-#define		SMBHSTSTS_COLLISION	0x08
-#define		SMBHSTSTS_FAILED	0x10
-#define	SMBHSLVSTS		0x01
-#define	SMBHSTCNT		0x02
-#define		SMBHSTCNT_QUICK		0x00
-#define		SMBHSTCNT_KILL		0x02
-#define		SMBHSTCNT_SENDRECV	0x04
-#define		SMBHSTCNT_BYTE		0x08
-#define		SMBHSTCNT_WORD		0x0c
-#define		SMBHSTCNT_BLOCK		0x14
-#define		SMBHSTCNT_START		0x40
-#define	SMBHSTCMD		0x03
-#define	SMBHSTADD		0x04
-#define	SMBHSTDAT0		0x05
-#define	SMBHSTDAT1		0x06
-#define	SMBBLKDAT		0x07
-#define	SMBSLVCNT		0x08
-#define	SMBSHDWCMD		0x09
-#define	SMBSLVEVT		0x0a
-#define	SMBSLVDAT		0x0c
+/* PCI configuration registers for SMB base address; chip dependent */
+#define	SMB_BASE1		0x90
+#define	SMB_BASE2		0x80
+#define	SMB_BASE3		0xd0
 
-#endif /* !_SYS_SMBUS_VIASMBREG_H */
+#define	SMB_HOST_CONFIG		0xd0 /* Lower word, actually */
+#define	SMB_REVISION		(SMB_HOST_CONFIG + 4)
+
+#endif /* !SYS_DEV_PCI_VIASMBPCIREG_H */
