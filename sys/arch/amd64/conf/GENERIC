@@ -408,7 +408,6 @@ ichlpcib* at pci? dev ? function ?	# Intel ICH PCI-LPC w/ timecounter,
 					# watchdog, gpio, Speedstep and HPET
 
 viapcib* at pci? dev ? function ?	# VIA PCI-ISA w/ SMBus support
-viadevbus* at viapcib?
 viasmb* at viadevbus?
 iic*	at viasmb?
 

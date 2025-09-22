@@ -101,11 +101,9 @@ viaenv_match(device_t parent, cfdata_t match, void *aux)
 	switch (PCI_PRODUCT(pa->pa_id)) {
 	case PCI_PRODUCT_VIATECH_VT82C686A_PWR:
 	case PCI_PRODUCT_VIATECH_VT8231_PWR:
-	case PCI_PRODUCT_VIATECH_VX900:
 		aprint_normal("andvar: viaenv matched\n");
 		return 3;
 	default:
-		aprint_normal("andvar: viaenv did not match %d\n", PCI_PRODUCT(pa->pa_id));
 		return 0;
 	}
 }

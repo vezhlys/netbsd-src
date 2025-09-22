@@ -1011,7 +1011,7 @@ attach	ichsmb at pci
 file	dev/pci/ichsmb.c		ichsmb
 
 # VIA SMBus controller
-define	viadevbus {}
+define	viadevbus { }
 device	viasmb: i2cbus
 attach	viasmb at viadevbus
 file	dev/pci/viasmb.c		viasmb

@@ -121,7 +121,6 @@ viapcib_match(device_t parent, cfdata_t match, void *opaque)
 static void
 viapcib_attach(device_t parent, device_t self, void *opaque)
 {
-	struct viapcib_softc *sc = device_private(self);
 	struct pci_attach_args *pa = opaque;
 
 	pcibattach(parent, self, opaque);

@@ -70,7 +70,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 
 #include <dev/i2c/i2cvar.h>
 
-#include <dev/pci/viasmbpcibreg.h>
+#include <dev/pci/viasmbpcireg.h>
 #include <dev/smbus/viasmbreg.h>
 
 /*#define VIASMB_DEBUG */
@@ -97,7 +97,8 @@ struct viasmb_softc {
 	int sc_revision;
 };
 
-
+static int	viasmb_match(device_t, cfdata_t, void *);
+static void	viasmb_attach(device_t, device_t, void *);
 static int	viasmb_clear(struct viasmb_softc *);
 static int	viasmb_busy(struct viasmb_softc *);
 /* SMBus operations */
@@ -204,21 +205,6 @@ viasmb_attach(device_t parent, device_t self, void *aux)
 	sc->sc_i2c.ic_exec = viasmb_exec;
 
 	iicbus_attach(self, &sc->sc_i2c);
-		
-
-	uint8_t cmd = 0x00;
-	uint8_t buf[16];
-	int error = iic_exec(iba.iba_tag, I2C_OP_READ_WITH_STOP, 0x69,
-				 &cmd, 1, buf, sizeof(buf), 0);
-	if (error) {
-		printf("[iictest] iic_exec failed: %d\n", error);
-		return;
-	}
-
-	printf("[iictest] Read from 0x69:");
-	for (int i = 0; i < sizeof(buf); i++)
-		printf(" %02x", buf[i]);
-	printf("\n");
 }
 
 static int
@@ -227,7 +213,7 @@ viasmb_wait(struct viasmb_softc *sc)
 	int rv, timeout;
 	uint8_t val = 0;
 
-	timeout = viasmb_SMBUS_TIMEOUT;
+	timeout = VIASMB_SMBUS_TIMEOUT;
 	rv = 0;
 
 	while (timeout--) {
