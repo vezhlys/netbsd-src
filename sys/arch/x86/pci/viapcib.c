@@ -122,11 +122,8 @@ static void
 viapcib_attach(device_t parent, device_t self, void *opaque)
 {
 	struct pci_attach_args *pa = opaque;
-
 	pcibattach(parent, self, opaque);
 	
 	/* Attach the VIA device bus (for SMBus etc.) */
-    //config_found(self, NULL, NULL, CFARGS_NONE);
-	/* Attach the VIA devbus */
-    config_found_ia(self, "viadevbus", NULL, NULL, CFARGS_NONE);
+	config_found(self, pa, NULL, CFARGS(.iattr = "viadevbus"));
 }

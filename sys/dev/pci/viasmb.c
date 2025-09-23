@@ -164,6 +164,7 @@ viasmb_attach(device_t parent, device_t self, void *aux)
 	sc->sc_iot = pa->pa_iot;
 	addr = pci_conf_read(pa->pa_pc, pa->pa_tag, SMB_BASE3);
 	addr &= 0xfff0;
+	aprint_naive("\n");
 	if (bus_space_map(sc->sc_iot, addr, 8, 0, &sc->sc_ioh)) {
 		aprint_normal(": failed to map SMBus I/O space\n");
 		return;
@@ -193,7 +194,7 @@ viasmb_attach(device_t parent, device_t self, void *aux)
 	val = pci_conf_read(pa->pa_pc, pa->pa_tag, SMB_REVISION);
 	sc->sc_revision = val >> 16;
 	
-	printf("%s: SMBus found at 0x%x (revision 0x%x)\n",
+	aprint_normal("%s: SMBus found at 0x%x (revision 0x%x)\n",
 		device_xname(self), addr, sc->sc_revision);
 	
 	/* Disable slave function */
