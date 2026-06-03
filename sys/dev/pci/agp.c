@@ -235,6 +235,13 @@ const struct agp_product {
 	  agp_amd64_match,	agp_amd64_attach },
 #endif
 
+#if NAGP_NVIDIA > 0
+	{ PCI_VENDOR_NVIDIA,	PCI_PRODUCT_NVIDIA_NFORCE_PCHB,
+	  NULL,			agp_nvidia_attach },
+	{ PCI_VENDOR_NVIDIA,	PCI_PRODUCT_NVIDIA_NFORCE2_PCHB,
+	  NULL,			agp_nvidia_attach },
+#endif
+
 #if NAGP_SIS > 0
 	{ PCI_VENDOR_SIS,	-1,
 	  NULL,			agp_sis_attach },

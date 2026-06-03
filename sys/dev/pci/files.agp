@@ -23,6 +23,9 @@ file	dev/pci/agp_i810.c	agp_i810 & agp		needs-flag
 define	agp_intel
 file	dev/pci/agp_intel.c	agp_intel & agp		needs-flag
 
+define	agp_nvidia
+file	dev/pci/agp_nvidia.c	agp_nvidia & agp	needs-flag
+
 define	agp_sis
 file	dev/pci/agp_sis.c	agp_sis & agp		needs-flag
 
