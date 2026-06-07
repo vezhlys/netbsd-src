@@ -1,3 +1,5 @@
+/*	$NetBSD$ */
+
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
@@ -167,8 +169,6 @@ agp_nvidia_init(struct agp_softc *sc)
 	u_int32_t aplimit;
 	u_int32_t temp;
 	int size, i, error;
-	
-	aprint_debug("agp_nvidia_init arrived\n");
 
 	apbase = sc->as_apaddr;
 	aplimit = apbase + AGP_GET_APERTURE(sc) - 1;
