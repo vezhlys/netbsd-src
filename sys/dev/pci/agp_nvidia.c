@@ -104,8 +104,6 @@ agp_nvidia_attach(device_t parent, device_t self, void *aux)
 	struct pci_attach_args *pa = aux;
 	struct agp_nvidia_softc *nsc;
 	struct agp_gatt *gatt;
-	
-	aprint_debug("agp_nvidia_attach: vendor=%04x product=%04x\n", PCI_VENDOR(pa->pa_id), PCI_PRODUCT(pa->pa_id));
 
 	nsc = malloc(sizeof *nsc, M_AGP, M_WAITOK);
 
