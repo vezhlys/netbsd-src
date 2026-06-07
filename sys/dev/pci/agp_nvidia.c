@@ -81,6 +81,9 @@ static int agp_nvidia_set_aperture(struct agp_softc *, u_int32_t);
 static int agp_nvidia_bind_page(struct agp_softc *, off_t, bus_addr_t);
 static int agp_nvidia_unbind_page(struct agp_softc *, off_t);
 static void agp_nvidia_flush_tlb(struct agp_softc *);
+#if 0
+static int agp_nvidia_detach(struct agp_softc *);
+#endif
 static int nvidia_init_iorr(u_int32_t, u_int32_t);
 
 
@@ -340,7 +343,6 @@ agp_nvidia_detach(struct agp_softc *sc)
 	/* restore iorr for previous aperture size */
 	nvidia_init_iorr(AGP_GET_APERTURE(sc), nsc->initial_aperture);
 
-	agp_free_gatt(sc, n
 	pci_conf_write(sc->as_pc, nsc->mc2_tag, AGP_NVIDIA_2_GARTCTRL, temp & ~(0x11));
 
 	/* Put the aperture back the way it started. */
