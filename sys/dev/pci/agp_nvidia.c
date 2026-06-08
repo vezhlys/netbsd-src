@@ -302,10 +302,12 @@ agp_nvidia_flush_tlb(struct agp_softc *sc)
 		/* Wait no more than 3 seconds. */
 		for (i = 0; i < 3000; i++) {
 			wbc_reg = pci_conf_read(sc->as_pc, nsc->mc1_tag, AGP_NVIDIA_1_WBC);
+
 			if ((nsc->wbc_mask & wbc_reg) == 0)
 				break;
-			else
-				DELAY(1000);
+
+			DELAY(1000);
+			preempt_point();
 		}
 		if (i == 3000)
 			aprint_debug_dev(sc->as_dev, "TLB flush took more than 3 seconds.\n");
