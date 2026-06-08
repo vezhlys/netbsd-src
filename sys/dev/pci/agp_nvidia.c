@@ -32,23 +32,22 @@
 __KERNEL_RCSID(0, "$NetBSD$");
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/kernel.h>
-#include <sys/proc.h>
+#include <sys/agpio.h>
+#include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/device.h>
-#include <sys/agpio.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/proc.h>
+#include <sys/systm.h>
 
+#include <dev/pci/agpreg.h>
+#include <dev/pci/agpvar.h>
 #include <dev/pci/pcidevs.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
-#include <dev/pci/agpvar.h>
-#include <dev/pci/agpreg.h>
 
 #include <machine/cpufunc.h>
-
-#include <sys/bus.h>
 
 #define AGP_NFORCE_MEMCTLTAG(pc, dev)	pci_make_tag(pc, 0, 0, dev)
 #define AGP_NFORCE_PPBTAG(pc)	pci_make_tag(pc, 0, 30, 0)
@@ -247,7 +246,7 @@ agp_nvidia_set_aperture(struct agp_softc *sc, uint32_t aperture)
 	case (32 * 1024 * 1024): key = 15; break;
 	default:
 		aprint_error_dev(sc->as_dev, "Invalid aperture size (%dMb)\n",
-				aperture / 1024 / 1024);
+		    aperture / 1024 / 1024);
 		return EINVAL;
 	}
 
@@ -316,9 +315,9 @@ agp_nvidia_flush_tlb(struct agp_softc *sc)
 
 	/* Flush TLB entries. */
 	pages = nsc->gatt->ag_entries * sizeof(uint32_t) / PAGE_SIZE;
-	for(i = 0; i < pages; i++)
+	for (i = 0; i < pages; i++)
 		(void)ag_virtual[i * PAGE_SIZE / sizeof(uint32_t)];
-	for(i = 0; i < pages; i++)
+	for (i = 0; i < pages; i++)
 		(void)ag_virtual[i * PAGE_SIZE / sizeof(uint32_t)];
 }
 
@@ -363,7 +362,7 @@ nvidia_init_iorr(uint32_t addr, uint32_t size)
 	/* Find the iorr that is already used for the addr */
 	/* If not found, determine the uppermost available iorr */
 	free_iorr_addr = AMD_K7_NUM_IORR;
-	for(iorr_addr = 0; iorr_addr < AMD_K7_NUM_IORR; iorr_addr++) {
+	for (iorr_addr = 0; iorr_addr < AMD_K7_NUM_IORR; iorr_addr++) {
 		base = rdmsr(IORR_BASE0 + 2 * iorr_addr);
 		mask = rdmsr(IORR_MASK0 + 2 * iorr_addr);
 

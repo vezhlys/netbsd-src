@@ -34,6 +34,8 @@
 #include <sys/mallocvar.h>
 #include <sys/mutex.h>
 
+#include <dev/pci/pcivar.h>
+
 struct agpbus_attach_args {
 	char	*_apa_busname; /* XXX placeholder */
 	struct pci_attach_args apa_pci_args;
