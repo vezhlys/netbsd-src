@@ -60,7 +60,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 
 struct agp_nvidia_softc {
 	struct agp_softc	agp;
-	u_int32_t		initial_aperture; /* aperture size at startup */
+	uint32_t		initial_aperture; /* aperture size at startup */
 	struct agp_gatt *	gatt;
 
 	device_t		dev;		/* AGP Controller */
@@ -68,7 +68,7 @@ struct agp_nvidia_softc {
 	pcitag_t		mc2_tag;  /* memory controller func 2 */
 	pcitag_t		bdev_tag;		/* Bridge */
 
-	u_int32_t		wbc_mask;
+	uint32_t		wbc_mask;
 	int				num_dirs;
 	int				num_active_entries;
 	off_t			pg_offset;
@@ -76,15 +76,15 @@ struct agp_nvidia_softc {
 
 
 static int agp_nvidia_init(struct agp_softc *);
-static u_int32_t agp_nvidia_get_aperture(struct agp_softc *);
-static int agp_nvidia_set_aperture(struct agp_softc *, u_int32_t);
+static uint32_t agp_nvidia_get_aperture(struct agp_softc *);
+static int agp_nvidia_set_aperture(struct agp_softc *, uint32_t);
 static int agp_nvidia_bind_page(struct agp_softc *, off_t, bus_addr_t);
 static int agp_nvidia_unbind_page(struct agp_softc *, off_t);
 static void agp_nvidia_flush_tlb(struct agp_softc *);
 #if 0
 static int agp_nvidia_detach(struct agp_softc *);
 #endif
-static int nvidia_init_iorr(u_int32_t, u_int32_t);
+static int nvidia_init_iorr(uint32_t, uint32_t);
 
 
 static struct agp_methods agp_nvidia_methods = {
@@ -166,9 +166,9 @@ agp_nvidia_init(struct agp_softc *sc)
 {
 	struct agp_nvidia_softc *nsc = sc->as_chipc;
 	struct agp_gatt *gatt = nsc->gatt;
-	u_int32_t apbase;
-	u_int32_t aplimit;
-	u_int32_t temp;
+	uint32_t apbase;
+	uint32_t aplimit;
+	uint32_t temp;
 	int size, i, error;
 
 	apbase = sc->as_apaddr;
@@ -201,7 +201,7 @@ agp_nvidia_init(struct agp_softc *sc)
 	/* (G)ATT Base Address */
 	for (i = 0; i < 8; i++) {
 		pci_conf_write(sc->as_pc, nsc->mc2_tag, AGP_NVIDIA_2_ATTBASE(i),
-				 (gatt->ag_physical + (i % nsc->num_dirs) * 64 * 1024) | 1);
+		    (gatt->ag_physical + (i % nsc->num_dirs) * 64 * 1024) | 1);
 	}
 
 	/* GTLB Control */
@@ -215,26 +215,26 @@ agp_nvidia_init(struct agp_softc *sc)
 	return 0;
 }
 
-static u_int32_t
+static uint32_t
 agp_nvidia_get_aperture(struct agp_softc *sc)
 {
-	int val;
+	pcireg_t reg;
 	
-	val = (int) pci_conf_read(sc->as_pc, sc->as_tag, AGP_NVIDIA_0_APSIZE) & 0xff;
-	switch (val) {
+	reg = pci_conf_read(sc->as_pc, sc->as_tag, AGP_NVIDIA_0_APSIZE) & 0x0f;
+	switch (reg) {
 	case 0: return (512 * 1024 * 1024);
 	case 8: return (256 * 1024 * 1024);
 	case 12: return (128 * 1024 * 1024);
 	case 14: return (64 * 1024 * 1024);
 	case 15: return (32 * 1024 * 1024);
 	default:
-		aprint_error_dev(sc->as_dev, "Invalid aperture setting 0x%x\n", val);
+		aprint_error_dev(sc->as_dev, "Invalid aperture setting 0x%x\n", reg);
 		return 0;
 	}
 }
 
 static int
-agp_nvidia_set_aperture(struct agp_softc *sc, u_int32_t aperture)
+agp_nvidia_set_aperture(struct agp_softc *sc, uint32_t aperture)
 {
 	u_int8_t key;
 	pcireg_t reg;
@@ -261,7 +261,7 @@ static int
 agp_nvidia_bind_page(struct agp_softc *sc, off_t offset, bus_addr_t physical)
 {
 	struct agp_nvidia_softc *nsc = sc->as_chipc;
-	u_int32_t index;
+	uint32_t index;
 
 	if (offset >= (nsc->gatt->ag_entries << AGP_PAGE_SHIFT))
 		return EINVAL;
@@ -276,7 +276,7 @@ static int
 agp_nvidia_unbind_page(struct agp_softc *sc, off_t offset)
 {
 	struct agp_nvidia_softc *nsc = sc->as_chipc;
-	u_int32_t index;
+	uint32_t index;
 
 	if (offset >= (nsc->gatt->ag_entries << AGP_PAGE_SHIFT))
 		return EINVAL;
@@ -291,8 +291,8 @@ static void
 agp_nvidia_flush_tlb(struct agp_softc *sc)
 {
 	struct agp_nvidia_softc *nsc = sc->as_chipc;
-	u_int32_t wbc_reg;
-	volatile u_int32_t *ag_virtual;
+	uint32_t wbc_reg;
+	volatile uint32_t *ag_virtual;
 	int i, pages;
 
 	if (nsc->wbc_mask) {
@@ -312,22 +312,27 @@ agp_nvidia_flush_tlb(struct agp_softc *sc)
 			aprint_debug_dev(sc->as_dev, "TLB flush took more than 3 seconds.\n");
 	}
 
-	ag_virtual = (volatile u_int32_t *)nsc->gatt->ag_virtual;
+	ag_virtual = (volatile uint32_t *)nsc->gatt->ag_virtual;
 
 	/* Flush TLB entries. */
-	pages = nsc->gatt->ag_entries * sizeof(u_int32_t) / PAGE_SIZE;
+	pages = nsc->gatt->ag_entries * sizeof(uint32_t) / PAGE_SIZE;
 	for(i = 0; i < pages; i++)
-		(void)ag_virtual[i * PAGE_SIZE / sizeof(u_int32_t)];
+		(void)ag_virtual[i * PAGE_SIZE / sizeof(uint32_t)];
 	for(i = 0; i < pages; i++)
-		(void)ag_virtual[i * PAGE_SIZE / sizeof(u_int32_t)];
+		(void)ag_virtual[i * PAGE_SIZE / sizeof(uint32_t)];
 }
 
 #if 0
 static int
 agp_nvidia_detach(struct agp_softc *sc)
 {
+	int error;
+	uint32_t temp;
 	struct agp_nvidia_softc *nsc = sc->as_chipc;
-	u_int32_t temp;
+
+	error = agp_generic_detach(sc);
+	if (error)
+		return error;
 
 	/* GART Control */
 	temp = pci_conf_read(sc->as_pc, sc->as_tag, AGP_NVIDIA_0_APSIZE);
@@ -343,14 +348,6 @@ agp_nvidia_detach(struct agp_softc *sc)
 	/* restore iorr for previous aperture size */
 	nvidia_init_iorr(AGP_GET_APERTURE(sc), nsc->initial_aperture);
 
-	pci_conf_write(sc->as_pc, nsc->mc2_tag, AGP_NVIDIA_2_GARTCTRL, temp & ~(0x11));
-
-	/* Put the aperture back the way it started. */
-	AGP_SET_APERTURE(sc, nsc->initial_aperture);
-
-	/* restore iorr for previous aperture size */
-	nvidia_init_iorr(AGP_GET_APERTURE(sc), nsc->initial_aperture);
-
 	agp_free_gatt(sc, nsc->gatt);
 
 	return 0;
@@ -358,7 +355,7 @@ agp_nvidia_detach(struct agp_softc *sc)
 #endif
 
 static int
-nvidia_init_iorr(u_int32_t addr, u_int32_t size)
+nvidia_init_iorr(uint32_t addr, uint32_t size)
 {
 	uint64_t base, mask, sys;
 	uint32_t iorr_addr, free_iorr_addr;
