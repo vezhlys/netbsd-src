@@ -220,7 +220,7 @@ agp_nvidia_get_aperture(struct agp_softc *sc)
 	uint8_t apsize;
 
 	apsize = pci_conf_read(sc->as_pc, sc->as_tag, AGP_NVIDIA_0_APSIZE)
-	     & AGP_NVIDIA_0_APSIZE_MASK;
+	    & AGP_NVIDIA_0_APSIZE_MASK;
 	switch (apsize) {
 	case 0: return (512 * 1024 * 1024);
 	case 8: return (256 * 1024 * 1024);
