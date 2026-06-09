@@ -217,17 +217,19 @@ agp_nvidia_init(struct agp_softc *sc)
 static uint32_t
 agp_nvidia_get_aperture(struct agp_softc *sc)
 {
-	pcireg_t reg;
-	
-	reg = pci_conf_read(sc->as_pc, sc->as_tag, AGP_NVIDIA_0_APSIZE) & 0x0f;
-	switch (reg) {
+	uint8_t apsize;
+
+	apsize = pci_conf_read(sc->as_pc, sc->as_tag, AGP_NVIDIA_0_APSIZE)
+	     & AGP_NVIDIA_0_APSIZE_MASK;
+	switch (apsize) {
 	case 0: return (512 * 1024 * 1024);
 	case 8: return (256 * 1024 * 1024);
 	case 12: return (128 * 1024 * 1024);
 	case 14: return (64 * 1024 * 1024);
 	case 15: return (32 * 1024 * 1024);
 	default:
-		aprint_error_dev(sc->as_dev, "Invalid aperture setting 0x%x\n", reg);
+		aprint_error_dev(sc->as_dev, "Invalid aperture setting 0x%x\n",
+		    apsize);
 		return 0;
 	}
 }
@@ -235,23 +237,23 @@ agp_nvidia_get_aperture(struct agp_softc *sc)
 static int
 agp_nvidia_set_aperture(struct agp_softc *sc, uint32_t aperture)
 {
-	u_int8_t key;
+	uint8_t apsize;
 	pcireg_t reg;
 
 	switch (aperture) {
-	case (512 * 1024 * 1024): key = 0; break;
-	case (256 * 1024 * 1024): key = 8; break;
-	case (128 * 1024 * 1024): key = 12; break;
-	case (64 * 1024 * 1024): key = 14; break;
-	case (32 * 1024 * 1024): key = 15; break;
+	case (512 * 1024 * 1024): apsize = 0; break;
+	case (256 * 1024 * 1024): apsize = 8; break;
+	case (128 * 1024 * 1024): apsize = 12; break;
+	case (64 * 1024 * 1024): apsize = 14; break;
+	case (32 * 1024 * 1024): apsize = 15; break;
 	default:
-		aprint_error_dev(sc->as_dev, "Invalid aperture size (%dMb)\n",
+		aprint_error_dev(sc->as_dev, "Invalid aperture size (%uMb)\n",
 		    aperture / 1024 / 1024);
 		return EINVAL;
 	}
 
 	reg = pci_conf_read(sc->as_pc, sc->as_tag, AGP_NVIDIA_0_APSIZE);
-	reg = (reg & ~0x0f) | key;
+	reg = (reg & ~AGP_NVIDIA_0_APSIZE_MASK) | apsize;
 	pci_conf_write(sc->as_pc, sc->as_tag, AGP_NVIDIA_0_APSIZE, reg);
 	return 0;
 }
