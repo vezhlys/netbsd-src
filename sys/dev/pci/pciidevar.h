@@ -258,5 +258,6 @@ void	pciide_unmap_compat_intr(pci_chipset_tag_t,
 	    struct pciide_channel *, int);
 int	pciide_compat_intr(void *);
 int	pciide_pci_intr(void *);
+void via_sata_chip_map_new(struct pciide_softc *sc, const struct pci_attach_args *pa);
 
 #endif /* _DEV_PCI_PCIIDEVAR_H_ */
