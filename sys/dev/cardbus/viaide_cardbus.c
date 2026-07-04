@@ -64,7 +64,6 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <dev/pci/pciidereg.h>
 #include <dev/pci/pciidevar.h>
 
-#define PCI_CBMEM 0x10
 struct viaide_cardbus_softc {
 	struct pciide_softc si_sc;
 	cardbus_chipset_tag_t sc_cc;
@@ -105,14 +104,11 @@ static const struct pciide_product_desc *
 viaide_cardbus_lookup(const struct cardbus_attach_args *ca)
 {
 	pcireg_t ca_id;
-	pci_product_id_t ca_product;
+	//pci_product_id_t ca_product;
 	pci_class_t ca_class;
 	
 	ca_id = PCI_VENDOR(ca->ca_id);
-	ca_product = PCI_PRODUCT(ca->ca_id);
 	ca_class = PCI_CLASS(ca->ca_class);
-
-	aprint_debug("VIA cardbus lookup 0x%04x 0x%04x\n", ca_id, ca_product);
 
 	if (ca_id == PCI_VENDOR_VIATECH && ca_class == PCI_CLASS_MASS_STORAGE)
 		return pciide_lookup_product(ca->ca_id, viaide_cardbus_products);
@@ -147,9 +143,30 @@ viaide_cardbus_attach(device_t parent, device_t self, void *aux)
 	
 	
 	/* Map I/O registers */
-	if (Cardbus_mapreg_map(ct, PCI_CBMEM, PCI_MAPREG_TYPE_MEM, 0,
-			   &csc->si_sc.sc_dma_iot, &csc->si_sc.sc_dma_ioh, NULL, &csc->si_sc.sc_dma_ios)) {
-		aprint_error_dev(self, "can't map mem space\n");
+	csc->si_sc.sc_dma_ok = (Cardbus_mapreg_map(ct, PCI_BAR4, PCI_MAPREG_TYPE_IO, 0,
+			   &csc->si_sc.sc_dma_iot, &csc->si_sc.sc_dma_ioh, NULL, &csc->si_sc.sc_dma_ios)  == 0);
+			   
+	if (Cardbus_mapreg_map(ct, PCI_BAR0, PCI_MAPREG_TYPE_IO, 0,
+			   &csc->si_sc.sc_ba0_st, &csc->si_sc.sc_ba0_sh, NULL, &csc->si_sc.sc_ba0_ss)) {
+		aprint_error_dev(self, "couldn't map SATA regs\n");
+		return;
+	}
+	
+	if (Cardbus_mapreg_map(ct, PCI_BAR1, PCI_MAPREG_TYPE_IO, 0,
+			   &csc->si_sc.sc_ba1_st, &csc->si_sc.sc_ba1_sh, NULL, &csc->si_sc.sc_ba1_ss)) {
+		aprint_error_dev(self, "couldn't map SATA regs\n");
+		return;
+	}
+	
+	if (Cardbus_mapreg_map(ct, PCI_BAR2, PCI_MAPREG_TYPE_IO, 0,
+			   &csc->si_sc.sc_ba2_st, &csc->si_sc.sc_ba2_sh, NULL, &csc->si_sc.sc_ba2_ss)) {
+		aprint_error_dev(self, "couldn't map SATA regs\n");
+		return;
+	}
+
+	if (Cardbus_mapreg_map(ct, PCI_BAR5, PCI_MAPREG_TYPE_IO, 0,
+			   &csc->si_sc.sc_ba5_st, &csc->si_sc.sc_ba5_sh, NULL, &csc->si_sc.sc_ba5_ss)) {
+		aprint_error_dev(self, "couldn't map SATA regs\n");
 		return;
 	}
 	
@@ -184,8 +201,11 @@ viaide_cardbus_attach(device_t parent, device_t self, void *aux)
 
 	/* map interrupt */
 	csc->sc_ih = Cardbus_intr_establish(ct, IPL_BIO, pciide_pci_intr, sc);
+	csc->si_sc.sc_pci_ih = csc->sc_ih;
+	
 	const struct pciide_product_desc * pp = viaide_cardbus_lookup(ca);
 	pca = malloc(sizeof(struct pci_attach_args), M_DEVBUF, M_WAIT|M_ZERO);
+
 	pca->pa_bus = ca->ca_bus;
 	pca->pa_iot = ca->ca_iot;
 	pca->pa_memt = ca->ca_memt;
@@ -194,7 +214,7 @@ viaide_cardbus_attach(device_t parent, device_t self, void *aux)
 	pca->pa_function = ca->ca_function;
 	pca->pa_class = ca->ca_class;
 	pca->pa_id = ca->ca_id;
-	pca->pa_device = ca->ca_cis.product;
+	pca->pa_device = 8;
 	pca->pa_flags = ca->ca_cis.bar[5].flags;
 	pca->pa_flags |= PCI_FLAGS_IO_OKAY;
 
