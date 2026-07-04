@@ -116,6 +116,16 @@ struct pciide_softc {
 	 * For Silicon Image SATALink, Serverworks SATA, Artisea SATA
 	 * and Promise SATA
 	 */
+	bus_space_tag_t sc_ba0_st;
+	bus_space_handle_t sc_ba0_sh;
+	bus_size_t sc_ba0_ss;
+	bus_space_tag_t sc_ba1_st;
+	bus_space_handle_t sc_ba1_sh;
+	bus_size_t sc_ba1_ss;
+	bus_space_tag_t sc_ba2_st;
+	bus_space_handle_t sc_ba2_sh;
+	bus_size_t sc_ba2_ss;
+	 
 	bus_space_tag_t sc_ba5_st;
 	bus_space_handle_t sc_ba5_sh;
 	bus_size_t sc_ba5_ss;
