@@ -178,7 +178,7 @@ viaide_cardbus_attach(device_t parent, device_t self, void *aux)
 
 	/* map interrupt */
 	csc->sc_ih = Cardbus_intr_establish(ct, IPL_BIO, pciide_pci_intr, sc);
-	csc->si_sc.sc_pci_ih = csc->sc_ih;
+	//csc->si_sc.sc_pci_ih = csc->sc_ih;
 	
 	const struct pciide_product_desc * pp = viaide_cardbus_lookup(ca);
 	pca = malloc(sizeof(struct pci_attach_args), M_DEVBUF, M_WAIT|M_ZERO);
