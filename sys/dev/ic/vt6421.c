@@ -1,4 +1,5 @@
-$NetBSD$
+/*	$NetBSD$	*/
+
 /*-
  * Copyright (c) 2026 The NetBSD Foundation, Inc.
  * All rights reserved.
@@ -31,11 +32,14 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 
+#include <dev/pci/pcivar.h>
 #include <dev/pci/pciidereg.h>
 #include <dev/pci/pciidevar.h>
 #include <dev/pci/pciide_apollo_reg.h>
 
-static void
+#include "vt6421var.h"
+
+void
 vt6421_mapreg_dma(struct pciide_softc *sc, bus_dma_tag_t sc_dmat)
 {
 	struct pciide_channel *pc;
@@ -81,39 +85,29 @@ vt6421_mapreg_dma(struct pciide_softc *sc, bus_dma_tag_t sc_dmat)
 	}
 }
 
-
 static int
-via_vt6421_chansetup(struct vt6421_softc *sc, int channel)
+via_vt6421_chansetup(struct pciide_softc *sc, int channel)
 {
-	struct pciide_channel *cp = &sc.pe_sc->pciide_channels[channel];
+	struct pciide_channel *cp = &sc->pciide_channels[channel];
 
-	sc.pe_sc->wdc_chanarray[channel] = &cp->ata_channel;
+	sc->wdc_chanarray[channel] = &cp->ata_channel;
 
 	cp->ata_channel.ch_channel = channel;
-	cp->ata_channel.ch_atac = &sc.pe_sc->sc_wdcdev.sc_atac;
+	cp->ata_channel.ch_atac = &sc->sc_wdcdev.sc_atac;
 
 	return 1;
 }
 
-
 void
-vt6421_chip_map(struct vt6421_softc *vsc)
+vt6421_chip_map(struct pciide_softc *sc, struct vt6421_chan_handler *chan_handler)
 {
-	struct pciide_softc sc;
 	struct pciide_channel *cp;
 	struct ata_channel *wdc_cp;
 	struct wdc_regs *wdr;
 	int channel;
 	int i;
 
-	sc = vsc->pe_sc;
-
 	sc->sc_apo_regbase = APO_VIA_VT6421_REGBASE;
-
-	aprint_verbose_dev(sc->sc_wdcdev.sc_atac.atac_dev,
-	    "bus-master DMA support present");
-	vt6421_mapreg_dma(sc);
-	aprint_verbose("\n");
 
 	sc->sc_wdcdev.sc_atac.atac_cap |= ATAC_CAP_DATA16 | ATAC_CAP_DATA32;
 	sc->sc_wdcdev.sc_atac.atac_pio_cap = 4;
@@ -166,19 +160,10 @@ vt6421_chip_map(struct vt6421_softc *vsc)
 			continue;
 		}
 		
-		if (channel == 0) {
-			wdr->cmd_iot = vsc->cmd0_iot;
-			wdr->cmd_baseioh = vsc->cmd0_baseioh;
-			wdr->cmd_ios = vsc->cmd0_ios;
-		} else if (channel == 1) {
-			wdr->cmd_iot = vsc->cmd1_iot;
-			wdr->cmd_baseioh = vsc->cmd1_sh;
-			wdr->cmd_ios = vsc->cmd1_ios;
-		} else {
-			wdr->cmd_iot = vsc->cmd2_iot;
-			wdr->cmd_baseioh = vsc->cmd2_sh;
-			wdr->cmd_ios = vsc->cmd2_ios;
-		}
+
+		wdr->cmd_iot = chan_handler[channel].sc_cmd_st;
+		wdr->cmd_baseioh = chan_handler[channel].sc_cmd_sh;
+		wdr->cmd_ios = chan_handler[channel].sc_cmd_ios;
 
 		wdr->ctl_iot = wdr->cmd_iot;
 		for (i = 0; i < WDC_NREG; i++) {

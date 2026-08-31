@@ -33,13 +33,16 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
-#include <sys/mbuf.h>
 #include <sys/systm.h>
 
 #include <dev/cardbus/cardbusvar.h>
+
 #include <dev/pci/pcidevs.h>
+#include <dev/pci/pciide_apollo_reg.h>
 #include <dev/pci/pciidereg.h>
 #include <dev/pci/pciidevar.h>
+
+#include <dev/ic/vt6421var.h>
 
 struct viaide_cardbus_softc {
 	struct pciide_softc si_sc;
@@ -57,22 +60,22 @@ struct viaide_cardbus_softc {
 static int viaide_cardbus_match(device_t, cfdata_t, void *);
 static void viaide_cardbus_attach(device_t, device_t, void *);
 static int viaide_cardbus_detach(device_t, int);
+static bool viaide_cardbus_suspend(device_t, const pmf_qual_t *);
 static bool viaide_cardbus_resume(device_t, const pmf_qual_t *);
 void via_sata_chip_map_new(struct pciide_softc *sc, const struct pci_attach_args *pa);
 
 
 
-
 static const struct viaide_cardbus_product {
-	pci_vendor_id_t vcp_vendor;
-	pci_product_id_t vcp_product;
 
+	uint32_t ide_product;
+	const char *ide_name;
 } viaide_cardbus_products[] = {
 	{ PCI_PRODUCT_VIATECH_VT6421_RAID,
 	  "VIA Technologies VT6421 Serial ATA RAID Controller"
 	},
 	{ 0,
-	  0
+	  NULL
 	},
 };
 
@@ -83,15 +86,11 @@ CFATTACH_DECL_NEW(viaide_cardbus, sizeof(struct viaide_cardbus_softc),
 static const struct viaide_cardbus_product *
 viaide_cardbus_lookup(const struct cardbus_attach_args *ca)
 {
-	pcireg_t ca_id;
-	pci_class_t ca_class;
-	
-	ca_id = PCI_VENDOR(ca->ca_id);
-	ca_class = PCI_CLASS(ca->ca_class);
+	const struct viaide_cardbus_product *vcp;
 
-	for (vcp = viaide_cardbus_products; vcp->vcp_product != 0; vcp++) {
-		if (PCI_VENDOR(ca->ca_id) == vcp->scp_vendor &&
-		    PCI_PRODUCT(ca->ca_id) == vcp->scp_product)
+	for (vcp = viaide_cardbus_products; vcp->ide_product != 0; vcp++) {
+		if (PCI_VENDOR(ca->ca_id) == PCI_VENDOR_VIATECH &&
+		    PCI_PRODUCT(ca->ca_id) == vcp->ide_product)
 			return vcp;
 	}
 
@@ -119,23 +118,25 @@ viaide_cardbus_attach(device_t parent, device_t self, void *aux)
 	cardbus_chipset_tag_t cc = ct->ct_cc;
 	cardbus_function_tag_t cf = ct->ct_cf;
 	pcireg_t reg;
-	vt6421_softc vc;
-	int csr;
+	struct vt6421_chan_handler chan_handlers[VT6421_NCHANNELS];
+	struct vt6421_chan_handler *vch;
+	int csr, channel;
 	char devinfo[256];
 	
 	
 	/* Map I/O registers */
 	csc->si_sc.sc_dma_ok = (Cardbus_mapreg_map(ct, PCIIDE_REG_BUS_MASTER_DMA,
-                PCI_MAPREG_TYPE_IO, 0, &sc.sc_dma_iot, &sc.sc_dma_ioh, NULL, 
-			    &sc.sc_dma_ios)  == 0);
-				
-	aprint_verbose_dev(sc->sc_wdcdev.sc_atac.atac_dev,
-	    "bus-master DMA support present");
-	via_vt6421_mapreg_dma(sc);
+                PCI_MAPREG_TYPE_IO, 0, &sc->sc_dma_iot, &sc->sc_dma_ioh, NULL, 
+			    &sc->sc_dma_ios)  == 0);
+
+	sc->sc_wdcdev.sc_atac.atac_dev = self;
+	aprint_verbose("\n");
+	aprint_verbose_dev(self, "bus-master DMA support present");
+	vt6421_mapreg_dma(sc, ca->ca_dmat);
 	aprint_verbose("\n");
 	
 	if (Cardbus_mapreg_map(ct, PCI_BAR5, PCI_MAPREG_TYPE_IO, 0,
-			   &sc.sc_ba5_st, &sc.sc_ba5_sh, NULL, &sc.sc_ba5_ss)) {
+			   &sc->sc_ba5_st, &sc->sc_ba5_sh, NULL, &sc->sc_ba5_ss)) {
 		aprint_error_dev(self, "couldn't map SATA regs\n");
 		return;
 	}
@@ -144,8 +145,6 @@ viaide_cardbus_attach(device_t parent, device_t self, void *aux)
 	csc->sc_cf = cf;
 	csc->sc_ct = ct;
 	csc->sc_tag = ca->ca_tag;
-
-	sc->sc_wdcdev.sc_atac.atac_dev = self;
 
 	/*
 	 * Map the device.
@@ -171,26 +170,18 @@ viaide_cardbus_attach(device_t parent, device_t self, void *aux)
 	csc->sc_ih = Cardbus_intr_establish(ct, IPL_BIO, pciide_pci_intr, sc);
 	csc->si_sc.sc_pci_ih = csc->sc_ih;
 	
-	vc = malloc(sizeof(struct vt6421_softc), M_DEVBUF, M_WAIT|M_ZERO);
-	vc->pe_sc = sc;			   
-	if (Cardbus_mapreg_map(ct, PCI_BAR0, PCI_MAPREG_TYPE_IO, 0,
-			   &vc.sc_cmd0_st, &vc.sc_cmd0_sh, NULL, &vc.sc_cmd0_ss)) {
-		aprint_error_dev(self, "couldn't map channel 0 regs\n");
+	
+	for (channel = 0; channel < VT6421_NCHANNELS; channel++) {
+		vch = &chan_handlers[channel];
+		if (Cardbus_mapreg_map(ct, PCI_BAR(channel), PCI_MAPREG_TYPE_IO, 0,
+			    &vch->sc_cmd_st, &vch->sc_cmd_sh, NULL, &vch->sc_cmd_ios) != 0)
+			aprint_error_dev(sc->sc_wdcdev.sc_atac.atac_dev,
+			    "couldn't map channel %d regs\n", channel);
 	}
 	
-	if (Cardbus_mapreg_map(ct, PCI_BAR1, PCI_MAPREG_TYPE_IO, 0,
-			  &vc.sc_cmd1_st, &vc.sc_cmd1_sh, NULL, &vc.sc_cmd1_ss)) {
-		aprint_error_dev(self, "couldn't map channel 1 regs\n");
-	}
-	
-	if (Cardbus_mapreg_map(ct, PCI_BAR2, PCI_MAPREG_TYPE_IO, 0,
-			   &vc.sc_cmd2_st, &vc.sc_cmd2_sh, NULL, &vc.sc_cmd2_ss)) {
-		aprint_error_dev(self, "couldn't map channel 2 regs\n");
-	}
-	
-	vt6421_chip_map(vc);
+	vt6421_chip_map(sc, chan_handlers);
 
-	if (!pmf_device_register(self, NULL, viaide_cardbus_resume))
+	if (!pmf_device_register(self, viaide_cardbus_suspend, viaide_cardbus_resume))
 		aprint_error_dev(self, "couldn't establish power handler\n");
 }
 
@@ -208,21 +199,48 @@ viaide_cardbus_detach(device_t self, int flags)
 	if (csc->sc_ih != NULL) {
 		Cardbus_intr_disestablish(ct, csc->sc_ih);
 		csc->sc_ih = NULL;
+		csc->si_sc.sc_pci_ih = NULL;
 	}
-	free(sc, M_DEVBUF);
 
 	return 0;
 }
 
 static bool
-viaide_cardbus_resume(device_t dv, const pmf_qual_t *qual)
+viaide_cardbus_suspend(device_t dv, const pmf_qual_t *qual)
 {
-	/*struct viaide_cardbus_softc *csc = device_private(dv);
-	struct pciide_softc *sc = &csc->si_sc;*/
+	struct viaide_cardbus_softc *csc = device_private(dv);
+	struct pciide_softc *sc = &csc->si_sc;
+	struct cardbus_devfunc *ct = csc->sc_ct;
 	int s;
 
 	s = splbio();
-	//viaide_resume(sc);
+
+	sc->sc_pm_reg[0] = Cardbus_conf_read(ct, csc->sc_tag, APO_IDECONF(sc));
+	/* APO_DATATIM(sc) includes APO_UDMA(sc) */
+	sc->sc_pm_reg[1] = Cardbus_conf_read(ct, csc->sc_tag, APO_DATATIM(sc));
+	sc->sc_pm_reg[2] = Cardbus_conf_read(ct, csc->sc_tag, APO_CTLMISC(sc));
+	sc->sc_pm_reg[3] = Cardbus_conf_read(ct, csc->sc_tag, APO_MISCTIM(sc));
+
+	splx(s);
+	
+	return true;
+}
+
+static bool
+viaide_cardbus_resume(device_t dv, const pmf_qual_t *qual)
+{
+	struct viaide_cardbus_softc *csc = device_private(dv);
+	struct pciide_softc *sc = &csc->si_sc;
+	struct cardbus_devfunc *ct = csc->sc_ct;
+	int s;
+
+	s = splbio();
+
+	Cardbus_conf_write(ct, csc->sc_tag, APO_IDECONF(sc), sc->sc_pm_reg[0]);
+	Cardbus_conf_write(ct, csc->sc_tag, APO_DATATIM(sc), sc->sc_pm_reg[1]);
+	Cardbus_conf_write(ct, csc->sc_tag, APO_CTLMISC(sc), sc->sc_pm_reg[2]);
+	Cardbus_conf_write(ct, csc->sc_tag, APO_MISCTIM(sc), sc->sc_pm_reg[3]);
+
 	splx(s);
 	
 	return true;

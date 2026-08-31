@@ -1,4 +1,4 @@
-$NetBSD$
+/*	$NetBSD$	*/
 
 /*-
  * Copyright (c) 2026 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@ $NetBSD$
 #ifndef _IC_VT6421_H_
 #define _IC_VT6421_H_
 
-#include <dev/pci/pciidevar.h
+#include <dev/pci/pciidevar.h>
 
 #define	VT6421_NCHANNELS	3
 
@@ -37,10 +37,11 @@ struct vt6421_chan_handler {
 	bus_space_tag_t sc_cmd_st;
 	bus_space_handle_t sc_cmd_sh;
 	bus_size_t sc_cmd_ios;
-}
-
-struct vt6421_softc {
-	pciide_softc	pe_sc;
-
-	vt6421_chan_handler chan_handler[VT6421_NCHANNELS];
 };
+
+void vt6421_mapreg_dma(struct pciide_softc *, bus_dma_tag_t);
+
+void vt6421_chip_map(struct pciide_softc *, struct vt6421_chan_handler *);
+
+
+#endif

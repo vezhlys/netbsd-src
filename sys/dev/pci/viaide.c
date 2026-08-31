@@ -37,6 +37,8 @@ __KERNEL_RCSID(0, "$NetBSD: viaide.c,v 1.108 2026/07/06 17:40:42 andvar Exp $");
 #include <dev/pci/pciidevar.h>
 #include <dev/pci/pciide_apollo_reg.h>
 
+#include <dev/ic/vt6421var.h>
+
 static int	via_pcib_match(const struct pci_attach_args *);
 static void	via_chip_map(struct pciide_softc *,
 		    const struct pci_attach_args *);
@@ -1134,15 +1136,12 @@ void
 via_sata_chip_map_new(struct pciide_softc *sc,
     const struct pci_attach_args *pa)
 {
-	struct pciide_channel *cp;
-	struct ata_channel *wdc_cp;
-	struct wdc_regs *wdr;
 	int channel;
 	pci_intr_handle_t intrhandle;
 	const char *intrstr;
-	int i;
 	char intrbuf[PCI_INTRSTR_LEN];
-	vt6421_chan_handler *vch;
+	struct vt6421_chan_handler chan_handlers[VT6421_NCHANNELS];
+	struct vt6421_chan_handler *vch;
 
 	if (pciide_chipen(sc, pa) == 0)
 		return;
@@ -1155,9 +1154,13 @@ via_sata_chip_map_new(struct pciide_softc *sc,
 		    "couldn't map SATA regs\n");
 	}
 
+	sc->sc_dma_ok = (pci_mapreg_map(pa, PCIIDE_REG_BUS_MASTER_DMA,
+	    PCI_MAPREG_TYPE_IO, 0, &sc->sc_dma_iot, &sc->sc_dma_ioh,
+	    NULL, &sc->sc_dma_ios) == 0);
+
 	aprint_verbose_dev(sc->sc_wdcdev.sc_atac.atac_dev,
 	    "bus-master DMA support present");
-	via_vt6421_mapreg_dma(sc);
+	vt6421_mapreg_dma(sc, pa->pa_dmat);
 	aprint_verbose("\n");
 	
 	if (pci_intr_map(pa, &intrhandle) != 0) {
@@ -1181,18 +1184,13 @@ via_sata_chip_map_new(struct pciide_softc *sc,
 	if (PCI_CLASS(pa->pa_class) == PCI_CLASS_MASS_STORAGE &&
 	    PCI_SUBCLASS(pa->pa_class) == PCI_SUBCLASS_MASS_STORAGE_RAID)
 		sc->sc_wdcdev.sc_atac.atac_cap |= ATAC_CAP_RAID;
-		
-	
-	vc = malloc(sizeof(struct vt6421_softc), M_DEVBUF, M_WAIT|M_ZERO);
-	vc->pe_sc = sc;
-	vch = vc->chan_handler[channel];
+
 	for (channel = 0; channel < VT6421_NCHANNELS; channel++) {
-		if (pci_mapreg_map(pa, PCI_BAR(channel),
-			PCI_MAPREG_TYPE_IO, 0, &vch.sc_cmd_st[channel],
-			&vc->chan_handler.cmd_baseioh[channel], NULL, &vc->cmd_ios[channel]) != 0) {
+		vch = &chan_handlers[channel];
+		if (pci_mapreg_map(pa, PCI_BAR(channel), PCI_MAPREG_TYPE_IO, 0,
+		    &vch->sc_cmd_st, &vch->sc_cmd_sh, NULL, &vch->sc_cmd_ios) != 0)
 			aprint_error_dev(sc->sc_wdcdev.sc_atac.atac_dev,
-				"couldn't map channel %d regs\n", channel);
-		}
+			    "couldn't map channel %d regs\n", channel);
 	}
-	vt6421_chip_map(vc);
+	vt6421_chip_map(sc, chan_handlers);
 }
