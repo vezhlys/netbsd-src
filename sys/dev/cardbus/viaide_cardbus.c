@@ -1,9 +1,8 @@
+/*	$NetBSD$	*/
+
 /*-
  * Copyright (c) 2026 The NetBSD Foundation, Inc.
  * All rights reserved.
- *
- * This code is derived from software contributed to The NetBSD Foundation
- * by 
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -72,7 +71,7 @@ static const struct viaide_cardbus_product {
 	const char *ide_name;
 } viaide_cardbus_products[] = {
 	{ PCI_PRODUCT_VIATECH_VT6421_RAID,
-	  "VIA Technologies VT6421 Serial ATA RAID Controller"
+	  "VIA Technologies VT6421 Serial ATA Controller"
 	},
 	{ 0,
 	  NULL
@@ -166,7 +165,6 @@ viaide_cardbus_attach(device_t parent, device_t self, void *aux)
 
 	pci_devinfo(ca->ca_id, ca->ca_class, 0, devinfo, sizeof(devinfo));
 
-	/* map interrupt */
 	csc->sc_ih = Cardbus_intr_establish(ct, IPL_BIO, pciide_pci_intr, sc);
 	csc->si_sc.sc_pci_ih = csc->sc_ih;
 	
@@ -213,7 +211,7 @@ viaide_cardbus_suspend(device_t dv, const pmf_qual_t *qual)
 	struct cardbus_devfunc *ct = csc->sc_ct;
 	int s;
 
-	s = splbio();
+	s = splvm();
 
 	sc->sc_pm_reg[0] = Cardbus_conf_read(ct, csc->sc_tag, APO_IDECONF(sc));
 	/* APO_DATATIM(sc) includes APO_UDMA(sc) */
@@ -234,7 +232,7 @@ viaide_cardbus_resume(device_t dv, const pmf_qual_t *qual)
 	struct cardbus_devfunc *ct = csc->sc_ct;
 	int s;
 
-	s = splbio();
+	s = splvm();
 
 	Cardbus_conf_write(ct, csc->sc_tag, APO_IDECONF(sc), sc->sc_pm_reg[0]);
 	Cardbus_conf_write(ct, csc->sc_tag, APO_DATATIM(sc), sc->sc_pm_reg[1]);

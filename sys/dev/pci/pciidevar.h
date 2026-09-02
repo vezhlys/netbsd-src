@@ -116,16 +116,6 @@ struct pciide_softc {
 	 * For Silicon Image SATALink, Serverworks SATA, Artisea SATA
 	 * and Promise SATA
 	 */
-	bus_space_tag_t sc_ba0_st;
-	bus_space_handle_t sc_ba0_sh;
-	bus_size_t sc_ba0_ss;
-	bus_space_tag_t sc_ba1_st;
-	bus_space_handle_t sc_ba1_sh;
-	bus_size_t sc_ba1_ss;
-	bus_space_tag_t sc_ba2_st;
-	bus_space_handle_t sc_ba2_sh;
-	bus_size_t sc_ba2_ss;
-	 
 	bus_space_tag_t sc_ba5_st;
 	bus_space_handle_t sc_ba5_sh;
 	bus_size_t sc_ba5_ss;
@@ -268,6 +258,5 @@ void	pciide_unmap_compat_intr(pci_chipset_tag_t,
 	    struct pciide_channel *, int);
 int	pciide_compat_intr(void *);
 int	pciide_pci_intr(void *);
-void via_sata_chip_map_new(struct pciide_softc *sc, const struct pci_attach_args *pa);
 
 #endif /* _DEV_PCI_PCIIDEVAR_H_ */

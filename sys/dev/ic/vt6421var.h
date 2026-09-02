@@ -43,5 +43,4 @@ void vt6421_mapreg_dma(struct pciide_softc *, bus_dma_tag_t);
 
 void vt6421_chip_map(struct pciide_softc *, struct vt6421_chan_handler *);
 
-
 #endif
