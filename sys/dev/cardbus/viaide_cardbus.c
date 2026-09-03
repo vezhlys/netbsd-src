@@ -145,6 +145,12 @@ viaide_cardbus_attach(device_t parent, device_t self, void *aux)
 	csc->sc_ct = ct;
 	csc->sc_tag = ca->ca_tag;
 
+#if NATA_DMA
+	/* Set up DMA defaults; these might be adjusted by chip_map. */
+	sc->sc_dma_maxsegsz = IDEDMA_BYTE_COUNT_MAX;
+	sc->sc_dma_boundary = IDEDMA_BYTE_COUNT_ALIGN;
+#endif
+
 	/*
 	 * Map the device.
 	 */
