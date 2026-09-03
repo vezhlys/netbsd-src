@@ -63,8 +63,6 @@ static bool viaide_cardbus_suspend(device_t, const pmf_qual_t *);
 static bool viaide_cardbus_resume(device_t, const pmf_qual_t *);
 void via_sata_chip_map_new(struct pciide_softc *sc, const struct pci_attach_args *pa);
 
-
-
 static const struct viaide_cardbus_product {
 
 	uint32_t ide_product;
@@ -110,7 +108,8 @@ viaide_cardbus_match(device_t parent, cfdata_t match, void *aux)
 static void
 viaide_cardbus_attach(device_t parent, device_t self, void *aux)
 {
-	struct cardbus_attach_args *ca = aux;
+	const struct cardbus_attach_args *ca = aux;
+	const struct viaide_cardbus_product *vcp;
 	struct viaide_cardbus_softc *csc = device_private(self);
 	struct pciide_softc *sc = &csc->si_sc;
 	cardbus_devfunc_t ct = ca->ca_ct;
@@ -120,20 +119,22 @@ viaide_cardbus_attach(device_t parent, device_t self, void *aux)
 	struct vt6421_chan_handler chan_handlers[VT6421_NCHANNELS];
 	struct vt6421_chan_handler *vch;
 	int csr, channel;
-	char devinfo[256];
-	
-	
+
+	vcp = viaide_cardbus_lookup(ca);
+
+	aprint_naive(": SATA HBA\n");
+	aprint_normal(": %s\n", vcp->ide_name);
+
 	/* Map I/O registers */
 	csc->si_sc.sc_dma_ok = (Cardbus_mapreg_map(ct, PCIIDE_REG_BUS_MASTER_DMA,
                 PCI_MAPREG_TYPE_IO, 0, &sc->sc_dma_iot, &sc->sc_dma_ioh, NULL, 
 			    &sc->sc_dma_ios)  == 0);
 
 	sc->sc_wdcdev.sc_atac.atac_dev = self;
-	aprint_verbose("\n");
 	aprint_verbose_dev(self, "bus-master DMA support present");
 	vt6421_mapreg_dma(sc, ca->ca_dmat);
 	aprint_verbose("\n");
-	
+
 	if (Cardbus_mapreg_map(ct, PCI_BAR5, PCI_MAPREG_TYPE_IO, 0,
 			   &sc->sc_ba5_st, &sc->sc_ba5_sh, NULL, &sc->sc_ba5_ss)) {
 		aprint_error_dev(self, "couldn't map SATA regs\n");
@@ -169,12 +170,9 @@ viaide_cardbus_attach(device_t parent, device_t self, void *aux)
 	csc->sc_rbus_memt = ca->ca_rbus_memt;
 	csc->sc_tag = ca->ca_tag;
 
-	pci_devinfo(ca->ca_id, ca->ca_class, 0, devinfo, sizeof(devinfo));
-
 	csc->sc_ih = Cardbus_intr_establish(ct, IPL_BIO, pciide_pci_intr, sc);
 	csc->si_sc.sc_pci_ih = csc->sc_ih;
-	
-	
+
 	for (channel = 0; channel < VT6421_NCHANNELS; channel++) {
 		vch = &chan_handlers[channel];
 		if (Cardbus_mapreg_map(ct, PCI_BAR(channel), PCI_MAPREG_TYPE_IO, 0,
@@ -182,7 +180,7 @@ viaide_cardbus_attach(device_t parent, device_t self, void *aux)
 			aprint_error_dev(sc->sc_wdcdev.sc_atac.atac_dev,
 			    "couldn't map channel %d regs\n", channel);
 	}
-	
+
 	vt6421_chip_map(sc, chan_handlers);
 
 	if (!pmf_device_register(self, viaide_cardbus_suspend, viaide_cardbus_resume))
@@ -226,7 +224,7 @@ viaide_cardbus_suspend(device_t dv, const pmf_qual_t *qual)
 	sc->sc_pm_reg[3] = Cardbus_conf_read(ct, csc->sc_tag, APO_MISCTIM(sc));
 
 	splx(s);
-	
+
 	return true;
 }
 
@@ -246,6 +244,6 @@ viaide_cardbus_resume(device_t dv, const pmf_qual_t *qual)
 	Cardbus_conf_write(ct, csc->sc_tag, APO_MISCTIM(sc), sc->sc_pm_reg[3]);
 
 	splx(s);
-	
+
 	return true;
 }
