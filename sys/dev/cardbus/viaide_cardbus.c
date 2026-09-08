@@ -44,16 +44,16 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <dev/ic/vt6421var.h>
 
 struct viaide_cardbus_softc {
-	struct pciide_softc si_sc;
-	cardbus_chipset_tag_t sc_cc;
-	cardbus_function_tag_t sc_cf;
-	cardbus_devfunc_t sc_ct;
-	pcitag_t sc_tag;
-	bus_space_tag_t sc_iot;		/* CardBus I/O space tag */
-	bus_space_tag_t sc_memt;	/* CardBus MEM space tag */
-	rbus_tag_t sc_rbus_iot;		/* CardBus i/o rbus tag */
-	rbus_tag_t sc_rbus_memt;	/* CardBus mem rbus tag */
-	void *sc_ih;
+	struct pciide_softc csc_sc;
+	cardbus_chipset_tag_t csc_cc;
+	cardbus_function_tag_t csc_cf;
+	cardbus_devfunc_t csc_ct;
+	pcitag_t csc_tag;
+	bus_space_tag_t csc_iot;		/* CardBus I/O space tag */
+	bus_space_tag_t csc_memt;	/* CardBus MEM space tag */
+	rbus_tag_t csc_rbus_iot;		/* CardBus i/o rbus tag */
+	rbus_tag_t csc_rbus_memt;	/* CardBus mem rbus tag */
+	void *csc_ih;
 };
 
 static int viaide_cardbus_match(device_t, cfdata_t, void *);
@@ -111,7 +111,7 @@ viaide_cardbus_attach(device_t parent, device_t self, void *aux)
 	const struct cardbus_attach_args *ca = aux;
 	const struct viaide_cardbus_product *vcp;
 	struct viaide_cardbus_softc *csc = device_private(self);
-	struct pciide_softc *sc = &csc->si_sc;
+	struct pciide_softc *sc = &csc->csc_sc;
 	cardbus_devfunc_t ct = ca->ca_ct;
 	cardbus_chipset_tag_t cc = ct->ct_cc;
 	cardbus_function_tag_t cf = ct->ct_cf;
@@ -126,7 +126,7 @@ viaide_cardbus_attach(device_t parent, device_t self, void *aux)
 	aprint_normal(": %s\n", vcp->ide_name);
 
 	/* Map I/O registers */
-	csc->si_sc.sc_dma_ok = (Cardbus_mapreg_map(ct, PCIIDE_REG_BUS_MASTER_DMA,
+	csc->csc_sc.sc_dma_ok = (Cardbus_mapreg_map(ct, PCIIDE_REG_BUS_MASTER_DMA,
                 PCI_MAPREG_TYPE_IO, 0, &sc->sc_dma_iot, &sc->sc_dma_ioh, NULL, 
 			    &sc->sc_dma_ios)  == 0);
 
@@ -141,10 +141,10 @@ viaide_cardbus_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
-	csc->sc_cc = cc;
-	csc->sc_cf = cf;
-	csc->sc_ct = ct;
-	csc->sc_tag = ca->ca_tag;
+	csc->csc_cc = cc;
+	csc->csc_cf = cf;
+	csc->csc_ct = ct;
+	csc->csc_tag = ca->ca_tag;
 
 #if NATA_DMA
 	/* Set up DMA defaults; these might be adjusted by chip_map. */
@@ -164,14 +164,13 @@ viaide_cardbus_attach(device_t parent, device_t self, void *aux)
 	reg |= csr;
 	Cardbus_conf_write(ct, ca->ca_tag, PCI_COMMAND_STATUS_REG, reg);
 
-	csc->sc_iot = ca->ca_iot;
-	csc->sc_memt = ca->ca_memt;
-	csc->sc_rbus_iot = ca->ca_rbus_iot;
-	csc->sc_rbus_memt = ca->ca_rbus_memt;
-	csc->sc_tag = ca->ca_tag;
+	csc->csc_iot = ca->ca_iot;
+	csc->csc_memt = ca->ca_memt;
+	csc->csc_rbus_iot = ca->ca_rbus_iot;
+	csc->csc_rbus_memt = ca->ca_rbus_memt;
+	csc->csc_tag = ca->ca_tag;
 
-	csc->sc_ih = Cardbus_intr_establish(ct, IPL_BIO, pciide_pci_intr, sc);
-	csc->si_sc.sc_pci_ih = csc->sc_ih;
+	csc->csc_ih = Cardbus_intr_establish(ct, IPL_BIO, pciide_pci_intr, sc);
 
 	for (channel = 0; channel < VT6421_NCHANNELS; channel++) {
 		vch = &chan_handlers[channel];
@@ -191,17 +190,17 @@ static int
 viaide_cardbus_detach(device_t self, int flags)
 {
 	struct viaide_cardbus_softc *csc = device_private(self);
-	struct pciide_softc *sc = &csc->si_sc;
-	struct cardbus_devfunc *ct = csc->sc_ct;
+	struct pciide_softc *sc = &csc->csc_sc;
+	struct cardbus_devfunc *ct = csc->csc_ct;
 	int rv;
 
+	pmf_device_deregister(self);
 	rv = pciide_common_detach(sc, flags);
 	if (rv)
 		return (rv);
-	if (csc->sc_ih != NULL) {
-		Cardbus_intr_disestablish(ct, csc->sc_ih);
-		csc->sc_ih = NULL;
-		csc->si_sc.sc_pci_ih = NULL;
+	if (csc->csc_ih != NULL) {
+		Cardbus_intr_disestablish(ct, csc->csc_ih);
+		csc->csc_ih = NULL;
 	}
 
 	return 0;
@@ -211,17 +210,17 @@ static bool
 viaide_cardbus_suspend(device_t dv, const pmf_qual_t *qual)
 {
 	struct viaide_cardbus_softc *csc = device_private(dv);
-	struct pciide_softc *sc = &csc->si_sc;
-	struct cardbus_devfunc *ct = csc->sc_ct;
+	struct pciide_softc *sc = &csc->csc_sc;
+	struct cardbus_devfunc *ct = csc->csc_ct;
 	int s;
 
 	s = splvm();
 
-	sc->sc_pm_reg[0] = Cardbus_conf_read(ct, csc->sc_tag, APO_IDECONF(sc));
+	sc->sc_pm_reg[0] = Cardbus_conf_read(ct, csc->csc_tag, APO_IDECONF(sc));
 	/* APO_DATATIM(sc) includes APO_UDMA(sc) */
-	sc->sc_pm_reg[1] = Cardbus_conf_read(ct, csc->sc_tag, APO_DATATIM(sc));
-	sc->sc_pm_reg[2] = Cardbus_conf_read(ct, csc->sc_tag, APO_CTLMISC(sc));
-	sc->sc_pm_reg[3] = Cardbus_conf_read(ct, csc->sc_tag, APO_MISCTIM(sc));
+	sc->sc_pm_reg[1] = Cardbus_conf_read(ct, csc->csc_tag, APO_DATATIM(sc));
+	sc->sc_pm_reg[2] = Cardbus_conf_read(ct, csc->csc_tag, APO_CTLMISC(sc));
+	sc->sc_pm_reg[3] = Cardbus_conf_read(ct, csc->csc_tag, APO_MISCTIM(sc));
 
 	splx(s);
 
@@ -232,16 +231,16 @@ static bool
 viaide_cardbus_resume(device_t dv, const pmf_qual_t *qual)
 {
 	struct viaide_cardbus_softc *csc = device_private(dv);
-	struct pciide_softc *sc = &csc->si_sc;
-	struct cardbus_devfunc *ct = csc->sc_ct;
+	struct pciide_softc *sc = &csc->csc_sc;
+	struct cardbus_devfunc *ct = csc->csc_ct;
 	int s;
 
 	s = splvm();
 
-	Cardbus_conf_write(ct, csc->sc_tag, APO_IDECONF(sc), sc->sc_pm_reg[0]);
-	Cardbus_conf_write(ct, csc->sc_tag, APO_DATATIM(sc), sc->sc_pm_reg[1]);
-	Cardbus_conf_write(ct, csc->sc_tag, APO_CTLMISC(sc), sc->sc_pm_reg[2]);
-	Cardbus_conf_write(ct, csc->sc_tag, APO_MISCTIM(sc), sc->sc_pm_reg[3]);
+	Cardbus_conf_write(ct, csc->csc_tag, APO_IDECONF(sc), sc->sc_pm_reg[0]);
+	Cardbus_conf_write(ct, csc->csc_tag, APO_DATATIM(sc), sc->sc_pm_reg[1]);
+	Cardbus_conf_write(ct, csc->csc_tag, APO_CTLMISC(sc), sc->sc_pm_reg[2]);
+	Cardbus_conf_write(ct, csc->csc_tag, APO_MISCTIM(sc), sc->sc_pm_reg[3]);
 
 	splx(s);
 
