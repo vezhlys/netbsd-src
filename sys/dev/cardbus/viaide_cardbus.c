@@ -61,7 +61,6 @@ static void viaide_cardbus_attach(device_t, device_t, void *);
 static int viaide_cardbus_detach(device_t, int);
 static bool viaide_cardbus_suspend(device_t, const pmf_qual_t *);
 static bool viaide_cardbus_resume(device_t, const pmf_qual_t *);
-void via_sata_chip_map_new(struct pciide_softc *sc, const struct pci_attach_args *pa);
 
 static const struct viaide_cardbus_product {
 
@@ -171,6 +170,12 @@ viaide_cardbus_attach(device_t parent, device_t self, void *aux)
 	csc->csc_tag = ca->ca_tag;
 
 	csc->csc_ih = Cardbus_intr_establish(ct, IPL_BIO, pciide_pci_intr, sc);
+	
+	if (csc->csc_ih == NULL) {
+			aprint_error_dev(sc->sc_wdcdev.sc_atac.atac_dev,
+			    "couldn't establish interrupt\n");
+		return;
+	}
 
 	for (channel = 0; channel < VT6421_NCHANNELS; channel++) {
 		vch = &chan_handlers[channel];
@@ -192,9 +197,17 @@ viaide_cardbus_detach(device_t self, int flags)
 	struct viaide_cardbus_softc *csc = device_private(self);
 	struct pciide_softc *sc = &csc->csc_sc;
 	struct cardbus_devfunc *ct = csc->csc_ct;
-	int rv;
+	int rv, channel;
 
-	pmf_device_deregister(self);
+	for (channel = 0; channel < VT6421_NCHANNELS; channel++) {
+		Cardbus_mapreg_unmap(ct, PCI_BAR(channel), sc->sc_ba5_st, sc->sc_ba5_sh,
+			sc->sc_ba5_ss);
+	}
+	Cardbus_mapreg_unmap(ct, PCI_BAR5, sc->sc_ba5_st, sc->sc_ba5_sh,
+	    sc->sc_ba5_ss);
+	Cardbus_mapreg_unmap(ct, PCIIDE_REG_BUS_MASTER_DMA, sc->sc_ba5_st, sc->sc_ba5_sh,
+	    sc->sc_ba5_ss);
+
 	rv = pciide_common_detach(sc, flags);
 	if (rv)
 		return (rv);
@@ -202,6 +215,8 @@ viaide_cardbus_detach(device_t self, int flags)
 		Cardbus_intr_disestablish(ct, csc->csc_ih);
 		csc->csc_ih = NULL;
 	}
+
+	pmf_device_deregister(self);
 
 	return 0;
 }
