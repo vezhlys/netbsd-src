@@ -30,6 +30,7 @@
 .Nd AMD, NVIDIA and VIA IDE disk controllers driver
 .Sh SYNOPSIS
 .Cd "viaide* at pci? dev ? function ? flags 0x0000"
+.Cd "viaide* at cardbus? function ?"
 .Cd "options PCIIDE_AMD756_ENABLEDMA"
 .Sh DESCRIPTION
 The
@@ -61,6 +62,7 @@ problems where the IDE controller is wired up to the system incorrectly.
 .Sh SEE ALSO
 .Xr ata 4 ,
 .Xr atapi 4 ,
+.Xr cardbus 4 ,
 .Xr intro 4 ,
 .Xr pci 4 ,
 .Xr pciide 4 ,

@@ -355,6 +355,7 @@ file	dev/pci/slide.c		slide
 device	viaide: ata, ata_dma, ata_udma, pciide_common, wdc_common, sata
 attach	viaide at pci
 file	dev/pci/viaide.c	viaide
+file	dev/ic/vt6421.c		viaide
 
 # STMicroelectronics STPC IDE controllers
 device	stpcide: ata, ata_dma, ata_udma, pciide_common, wdc_common
