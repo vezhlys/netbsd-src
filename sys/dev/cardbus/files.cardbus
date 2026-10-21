@@ -150,6 +150,11 @@ file	dev/cardbus/njata_cardbus.c	njata_cardbus
 attach	siisata at cardbus with siisata_cardbus
 file	dev/cardbus/siisata_cardbus.c	siisata_cardbus
 
+# VIA VT6421A SATA controllers
+#
+attach	viaide at cardbus with viaide_cardbus
+file	dev/cardbus/viaide_cardbus.c	viaide_cardbus
+
 #
 # SD Host Controller
 #
